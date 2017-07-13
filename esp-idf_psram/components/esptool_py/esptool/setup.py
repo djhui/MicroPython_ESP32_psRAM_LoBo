@@ -29,7 +29,7 @@ long_description = """
 ==========
 esptool.py
 ==========
-A command line utility to communicate with the ROM bootloader in Espressif ESP8266 WiFi microcontroller.
+A command line utility to communicate with the ROM bootloader in Espressif ESP8266 & ESP32 microcontrollers.
 
 Allows flashing firmware, reading back firmware, querying chip parameters, etc.
 
@@ -44,6 +44,8 @@ esptool can be installed via pip:
 
 Since version 1.3, esptool supports both Python 2.7 and Python 3.4 or newer.
 
+Since version 2.0, esptool supports both ESP8266 & ESP32.
+
 Usage
 -----
 
@@ -56,11 +58,28 @@ Contributing
 Please see the `CONTRIBUTING.md file on github <https://github.com/espressif/esptool/blob/master/CONTRIBUTING.md>`_.
 """
 
+# For Windows, we want to install esptool.py.exe, etc. so that normal Windows command line can run them
+# For Linux/macOS, we can't use console_scripts with extension .py as their names will clash with the modules' names.
+if os.name == "nt":
+    scripts = None
+    entry_points = {
+        'console_scripts': [
+            'esptool.py=esptool:_main',
+            'espsecure.py=espsecure:_main',
+            'espefuse.py=espefuse:_main',
+        ],
+    }
+else:
+    scripts = ['esptool.py',
+               'espsecure.py',
+               'espefuse.py']
+    entry_points = None
+
 setup(
     name='esptool',
-    py_modules=['esptool'],
+    py_modules=['esptool', 'espsecure', 'espefuse'],
     version=find_version('esptool.py'),
-    description='A utility to communicate with the ROM bootloader in Espressif ESP8266.',
+    description='A serial utility to communicate & flash code to Espressif ESP8266 & ESP32 chips.',
     long_description=long_description,
     url='https://github.com/espressif/esptool',
     author='Fredrik Ahlberg (themadinventor) & Angus Gratton (projectgus)',
@@ -90,11 +109,6 @@ setup(
         'pyaes',
         'ecdsa',
     ],
-    entry_points={
-        'console_scripts': [
-            'esptool.py=esptool:_main',
-            'espsecure.py=espsecure:_main',
-            'espefuse.py=espefuse:_main',
-        ],
-    },
+    scripts=scripts,
+    entry_points=entry_points,
 )

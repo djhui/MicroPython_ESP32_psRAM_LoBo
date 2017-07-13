@@ -63,7 +63,7 @@
 #define MP_TASK_PRIORITY        (ESP_TASK_PRIO_MIN + 1)
 #if CONFIG_MEMMAP_SPIRAM_ENABLE
 // External SPIRAM is available, more memory for stack & heap can be allocated
-#define MP_TASK_STACK_SIZE      (32 * 1024)
+#define MP_TASK_STACK_SIZE      (64 * 1024)
 #define MP_TASK_HEAP_SIZE       (4 * 1024 * 1024 - 256)
 #else
 // Only DRAM memory available, limited amount of memory for stack & heap can be used
@@ -74,29 +74,20 @@
 
 
 STATIC StaticTask_t mp_task_tcb;
-STATIC StackType_t mp_task_stack[MP_TASK_STACK_LEN] __attribute__((aligned (8)));
+//STATIC StackType_t mp_task_stack[MP_TASK_STACK_LEN] __attribute__((aligned (8)));
+STATIC StackType_t *mp_task_stack;
 STATIC uint8_t *mp_task_heap;
 
 //===============================
 void mp_task(void *pvParameter) {
     volatile uint32_t sp = (uint32_t)get_sp();
     #if MICROPY_PY_THREAD
-    mp_thread_init(&mp_task_stack[0], MP_TASK_STACK_LEN);
+    //mp_thread_init(&mp_task_stack[0], MP_TASK_STACK_LEN);
+    mp_thread_init(mp_task_stack, MP_TASK_STACK_LEN);
     #endif
     uart_init();
 
-    // Allocate heap memory
-    #if !CONFIG_MEMMAP_SPIRAM_ENABLE_MALLOC
-    printf("\nAllocating uPY heap (%d bytes) in SPIRAM using pvPortMallocCaps\n\n", MP_TASK_HEAP_SIZE);
-    mp_task_heap = pvPortMallocCaps(MP_TASK_HEAP_SIZE, MALLOC_CAP_SPIRAM);
-    #else
-    #if CONFIG_MEMMAP_SPIRAM_ENABLE
-    printf("\nAllocating uPY heap (%d bytes) in SPIRAM using malloc\n\n", MP_TASK_HEAP_SIZE);
-    #else
-    printf("\nAllocating uPY heap (%d bytes) in DRAM using malloc\n\n", MP_TASK_HEAP_SIZE);
-    #endif
-    mp_task_heap = malloc(MP_TASK_HEAP_SIZE);
-    #endif
+    mpsleep_init0();
 
     if (mpsleep_get_reset_cause() != MPSLEEP_DEEPSLEEP_RESET) {
         rtc_init0();
@@ -119,8 +110,6 @@ soft_reset:
 
     // initialise peripherals
     machine_pins_init();
-
-    mpsleep_init0();
 
     // run boot-up scripts
     pyexec_frozen_module("_boot.py");
@@ -162,7 +151,32 @@ void app_main(void) {
 
 	esp_log_level_set("*", ESP_LOG_ERROR);
 
-    xTaskCreateStaticPinnedToCore(mp_task, "mp_task", MP_TASK_STACK_LEN, NULL, MP_TASK_PRIORITY, &mp_task_stack[0], &mp_task_tcb, 0);
+    printf("\nAllocating uPY stack, size=%d\n", MP_TASK_STACK_LEN);
+    mp_task_stack = (StackType_t *)pvPortMallocCaps(MP_TASK_STACK_LEN, MALLOC_CAP_8BIT);
+    if (mp_task_stack == NULL) {
+        printf("Error, Halted\n");
+        return;
+    }
+
+    // Allocate heap memory
+    #if !CONFIG_MEMMAP_SPIRAM_ENABLE_MALLOC
+    printf("\nAllocating uPY heap (%d bytes) in SPIRAM using pvPortMallocCaps\n\n", MP_TASK_HEAP_SIZE);
+    mp_task_heap = pvPortMallocCaps(MP_TASK_HEAP_SIZE, MALLOC_CAP_SPIRAM);
+    #else
+    #if CONFIG_MEMMAP_SPIRAM_ENABLE
+    printf("\nAllocating uPY heap (%d bytes) in SPIRAM using malloc\n\n", MP_TASK_HEAP_SIZE);
+    #else
+    printf("\nAllocating uPY heap (%d bytes) in DRAM using malloc\n\n", MP_TASK_HEAP_SIZE);
+    #endif
+    mp_task_heap = malloc(MP_TASK_HEAP_SIZE);
+    #endif
+    if (mp_task_heap == NULL) {
+        printf("Error, Halted\n");
+        return;
+    }
+
+    //xTaskCreateStaticPinnedToCore(mp_task, "mp_task", MP_TASK_STACK_LEN, NULL, MP_TASK_PRIORITY, &mp_task_stack[0], &mp_task_tcb, 0);
+    xTaskCreateStaticPinnedToCore(mp_task, "mp_task", MP_TASK_STACK_LEN, NULL, MP_TASK_PRIORITY, mp_task_stack, &mp_task_tcb, 0);
 }
 
 //-----------------------------

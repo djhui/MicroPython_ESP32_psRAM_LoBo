@@ -34,6 +34,7 @@
 
 #include "sdkconfig.h"
 #include "esp_spi_flash.h"
+#include "wear_levelling.h"
 #include "driver/sdmmc_host.h"
 #include "driver/sdmmc_defs.h"
 #include "sdmmc_cmd.h"
@@ -45,40 +46,18 @@
 #include "drivers/dht/dht.h"
 #include "modesp.h"
 
-#define DEBUG_ON    0
 
-#define FLASH_FS_SECTOR_SIZE    4096
-#define FLASH_FS_START          0x180000
+STATIC wl_handle_t fs_handle = WL_INVALID_HANDLE;   // not initialized
+STATIC size_t wl_sect_size = 4096;                  // will be set to actual size after initialization
 
-#if CONFIG_ESPTOOLPY_FLASHSIZE_16MB
-#define FLASH_FS_SIZE           0x800000
-#elif CONFIG_ESPTOOLPY_FLASHSIZE_8MB
-#define FLASH_FS_SIZE           0x400000
-#elif CONFIG_ESPTOOLPY_FLASHSIZE_4MB
-#define FLASH_FS_SIZE           0x200000
-#elif CONFIG_ESPTOOLPY_FLASHSIZE_2MB
-#define FLASH_FS_SIZE           0x080000
-#else
-#define FLASH_FS_SIZE           0x010000
-#endif
-
-#if CONFIG_FS_USE_WEAR_LEVELING
-
-// ======== Using wear leveling driver for Flash file system access ========================
-
-#include "wear_levelling.h"
-
-
-STATIC wl_handle_t fs_handle = WL_INVALID_HANDLE;
-STATIC size_t wl_sect_size = FLASH_FS_SECTOR_SIZE;
-
+// esp32 partition configuration needed for wear leveling driver
 STATIC const esp_partition_t fs_part = {
     ESP_PARTITION_TYPE_DATA,        //type
     ESP_PARTITION_SUBTYPE_DATA_FAT, //subtype
-    FLASH_FS_START,                 // address
-    FLASH_FS_SIZE,                  // size (2MB)
+    MICROPY_INTERNALFS_START,       // address (from mpconfigport.h)
+    MICROPY_INTERNALFS_SIZE,        // size (from mpconfigport.h)
     "uPYpart",                      // label
-    0                               // encrypted
+    MICROPY_INTERNALFS_ENCRIPTED    // encrypted (from mpconfigport.h)
 };
 
 //-------------------------------------------------------------------
@@ -97,9 +76,6 @@ STATIC mp_obj_t esp_flash_read(mp_obj_t offset_in, mp_obj_t buf_in) {
     if (res != ESP_OK) {
         mp_raise_OSError(MP_EIO);
     }
-    #if DEBUG_ON
-    printf("[FLASH] read offset=%d, length=%d\n", offset, bufinfo.len);
-    #endif
     return mp_const_none;
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_2(esp_flash_read_obj, esp_flash_read);
@@ -120,9 +96,6 @@ STATIC mp_obj_t esp_flash_write(mp_obj_t offset_in, mp_obj_t buf_in) {
     if (res != ESP_OK) {
         mp_raise_OSError(MP_EIO);
     }
-    #if DEBUG_ON
-    printf("[FLASH] write offset=%d, length=%d\n", offset, bufinfo.len);
-    #endif
     return mp_const_none;
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_2(esp_flash_write_obj, esp_flash_write);
@@ -135,25 +108,24 @@ STATIC mp_obj_t esp_flash_erase(mp_obj_t sector_in) {
     if (res != ESP_OK) {
         mp_raise_OSError(MP_EIO);
     }
-    #if DEBUG_ON
-    printf("[FLASH] erase sector=%d, offset=%d, size=%d\n", sector, sector * wl_sect_size, wl_sect_size);
-    #endif
     return mp_const_none;
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_1(esp_flash_erase_obj, esp_flash_erase);
 
 //------------------------------------
 STATIC mp_obj_t esp_flash_size(void) {
-    if (FLASH_FS_SIZE < 0x080000) return mp_obj_new_int_from_uint(FLASH_FS_SIZE - wl_sect_size);
-
+    // on first call to this function wear leveling partition is not yet initialized!
     if (fs_handle == WL_INVALID_HANDLE) {
+        // if wear leveling partition is not 'mounted', do it now
         esp_err_t res = wl_mount(&fs_part, &fs_handle);
         if (res != ESP_OK) {
+            // return the size less than 1MB to indicate an error
             return mp_obj_new_int_from_uint(0x010000);
         }
         wl_sect_size = wl_sector_size(fs_handle);
     }
-    return mp_obj_new_int_from_uint(FLASH_FS_SIZE - wl_sect_size);
+    // return usable file system size in bytes
+    return mp_obj_new_int_from_uint(wl_size(fs_handle));
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_0(esp_flash_size_obj, esp_flash_size);
 
@@ -165,97 +137,11 @@ STATIC MP_DEFINE_CONST_FUN_OBJ_0(esp_flash_sec_size_obj, esp_flash_sec_size);
 
 //----------------------------------------------------
 STATIC IRAM_ATTR mp_obj_t esp_flash_user_start(void) {
+    // wL driver starts from address 0, which is mapped to configured physical Flash address
     return MP_OBJ_NEW_SMALL_INT(0);
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_0(esp_flash_user_start_obj, esp_flash_user_start);
 
-//--------------------------------------
-STATIC mp_obj_t esp_flash_use_wl(void) {
-    return MP_OBJ_NEW_SMALL_INT(1);
-}
-STATIC MP_DEFINE_CONST_FUN_OBJ_0(esp_flash_use_wl_obj, esp_flash_use_wl);
-
-#else
-
-// ======== Using direct Flash access for Flash file system ================================
-
-//-------------------------------------------------------------------
-STATIC mp_obj_t esp_flash_read(mp_obj_t offset_in, mp_obj_t buf_in) {
-    mp_int_t offset = mp_obj_get_int(offset_in);
-    mp_buffer_info_t bufinfo;
-    mp_get_buffer_raise(buf_in, &bufinfo, MP_BUFFER_WRITE);
-
-    #if CONFIG_MEMMAP_SPIRAM_ENABLE
-    uint8_t buf[bufinfo.len];
-    esp_err_t res = spi_flash_read(offset, buf, bufinfo.len);
-    memcpy(bufinfo.buf, buf, bufinfo.len);
-    #else
-    esp_err_t res = spi_flash_read(offset, bufinfo.buf, bufinfo.len);
-    #endif
-    if (res != ESP_OK) {
-        mp_raise_OSError(MP_EIO);
-    }
-    return mp_const_none;
-}
-STATIC MP_DEFINE_CONST_FUN_OBJ_2(esp_flash_read_obj, esp_flash_read);
-
-//--------------------------------------------------------------------
-STATIC mp_obj_t esp_flash_write(mp_obj_t offset_in, mp_obj_t buf_in) {
-    mp_int_t offset = mp_obj_get_int(offset_in);
-    mp_buffer_info_t bufinfo;
-    mp_get_buffer_raise(buf_in, &bufinfo, MP_BUFFER_READ);
-
-    #if CONFIG_MEMMAP_SPIRAM_ENABLE
-    uint8_t buf[bufinfo.len];
-    memcpy(buf, bufinfo.buf, bufinfo.len);
-    esp_err_t res = spi_flash_write(offset, buf, bufinfo.len);
-    #else
-    esp_err_t res = spi_flash_write(offset, bufinfo.buf, bufinfo.len);
-    #endif
-    if (res != ESP_OK) {
-        mp_raise_OSError(MP_EIO);
-    }
-    return mp_const_none;
-}
-STATIC MP_DEFINE_CONST_FUN_OBJ_2(esp_flash_write_obj, esp_flash_write);
-
-//---------------------------------------------------
-STATIC mp_obj_t esp_flash_erase(mp_obj_t sector_in) {
-    mp_int_t sector = mp_obj_get_int(sector_in);
-
-    esp_err_t res = spi_flash_erase_sector(sector);
-    if (res != ESP_OK) {
-        mp_raise_OSError(MP_EIO);
-    }
-    return mp_const_none;
-}
-STATIC MP_DEFINE_CONST_FUN_OBJ_1(esp_flash_erase_obj, esp_flash_erase);
-
-//------------------------------------
-STATIC mp_obj_t esp_flash_size(void) {
-    return MP_OBJ_NEW_SMALL_INT(FLASH_FS_SIZE - FLASH_FS_SECTOR_SIZE);
-}
-STATIC MP_DEFINE_CONST_FUN_OBJ_0(esp_flash_size_obj, esp_flash_size);
-
-//------------------------------------
-STATIC mp_obj_t esp_flash_sec_size() {
-    return MP_OBJ_NEW_SMALL_INT(FLASH_FS_SECTOR_SIZE);
-}
-STATIC MP_DEFINE_CONST_FUN_OBJ_0(esp_flash_sec_size_obj, esp_flash_sec_size);
-
-//------------------------------------------
-STATIC mp_obj_t esp_flash_user_start(void) {
-    return MP_OBJ_NEW_SMALL_INT(FLASH_FS_START);
-}
-STATIC MP_DEFINE_CONST_FUN_OBJ_0(esp_flash_user_start_obj, esp_flash_user_start);
-
-//--------------------------------------
-STATIC mp_obj_t esp_flash_use_wl(void) {
-    return MP_OBJ_NEW_SMALL_INT(0);
-}
-STATIC MP_DEFINE_CONST_FUN_OBJ_0(esp_flash_use_wl_obj, esp_flash_use_wl);
-
-#endif
 
 
 // ======== CD Card support ===========================================================================
@@ -298,15 +184,16 @@ SDcard pinout                 uSDcard pinout
 STATIC sdmmc_card_t sdmmc_card;
 STATIC uint8_t sdcard_status = 1;
 
-//-----------------------------------------------------
-static void sdcard_print_info(const sdmmc_card_t* card)
+//---------------------------------------------------------------
+STATIC void sdcard_print_info(const sdmmc_card_t* card, int mode)
 {
+    #if MICROPY_SDMMC_SHOW_INFO
 	printf("---------------------\n");
-	#if CONFIG_SDMMC_1BITMODE
-    printf(" Mode: 1-line mode\n");
-	#else
-    printf(" Mode:  SD (4bit)\n");
-	#endif
+	if (mode == 1) {
+        printf(" Mode: 1-line mode\n");
+    } else {
+        printf(" Mode:  SD (4bit)\n");
+    }
     printf(" Name: %s\n", card->cid.name);
     printf(" Type: %s\n", (card->ocr & SD_OCR_SDHC_CAP)?"SDHC/SDXC":"SDSC");
     printf("Speed: %s (%d MHz)\n", (card->csd.tr_speed > 25000000)?"high speed":"default speed", card->csd.tr_speed/1000000);
@@ -315,13 +202,18 @@ static void sdcard_print_info(const sdmmc_card_t* card)
             card->csd.csd_ver,
             card->csd.sector_size, card->csd.capacity, card->csd.read_block_len);
     printf("  SCR: sd_spec=%d, bus_width=%d\n\n", card->scr.sd_spec, card->scr.bus_width);
+    #endif
 }
 
-//-------------------------------------
-STATIC mp_obj_t esp_sdcard_init(void) {
+//----------------------------------------------
+STATIC mp_obj_t esp_sdcard_init(mp_obj_t mode) {
+    mp_int_t card_mode = mp_obj_get_int(mode);
+
     if (sdcard_status == 0) {
-        printf("Allready initialized:\n");
-        sdcard_print_info(&sdmmc_card);
+        #if MICROPY_SDMMC_SHOW_INFO
+        printf("Already initialized:\n");
+        sdcard_print_info(&sdmmc_card, card_mode);
+        #endif
         return MP_OBJ_NEW_SMALL_INT(sdcard_status);
     }
 
@@ -335,37 +227,44 @@ STATIC mp_obj_t esp_sdcard_init(void) {
     gpio_set_pull_mode(14, GPIO_PULLUP_ONLY);
     gpio_set_pull_mode(15, GPIO_PULLUP_ONLY);
 
-	#if CONFIG_SDMMC_1BITMODE
-    // Use 1-line SD mode
-    host.flags = SDMMC_HOST_FLAG_1BIT;
-    slot_config.width = 1;
-    #else
-    gpio_set_pull_mode(4, GPIO_PULLUP_ONLY);
-    gpio_set_pull_mode(12, GPIO_PULLUP_ONLY);
-    gpio_set_pull_mode(13, GPIO_PULLUP_ONLY);
-	#endif
+	if (card_mode == 1) {
+        // Use 1-line SD mode
+        host.flags = SDMMC_HOST_FLAG_1BIT;
+        slot_config.width = 1;
+    }
+    else {
+        gpio_set_pull_mode(4, GPIO_PULLUP_ONLY);
+        gpio_set_pull_mode(12, GPIO_PULLUP_ONLY);
+        gpio_set_pull_mode(13, GPIO_PULLUP_ONLY);
+    }
 
     sdmmc_host_init();
     sdmmc_host_init_slot(SDMMC_HOST_SLOT_1, &slot_config);
 
     // Initialize the sd card
     esp_log_level_set("*", ESP_LOG_NONE);
+    #if MICROPY_SDMMC_SHOW_INFO
 	printf("---------------------\n");
     printf("Initializing SD Card: ");
+    #endif
     esp_err_t res = sdmmc_card_init(&host, &sdmmc_card);
 	esp_log_level_set("*", ESP_LOG_ERROR);
 
     if (res == ESP_OK) {
         sdcard_status = ESP_OK;
+        #if MICROPY_SDMMC_SHOW_INFO
         printf("OK.\n");
-        sdcard_print_info(&sdmmc_card);
+        #endif
+        sdcard_print_info(&sdmmc_card, card_mode);
     } else {
         sdcard_status = 1;
+        #if MICROPY_SDMMC_SHOW_INFO
         printf("Error.\n\n");
+        #endif
     }
     return MP_OBJ_NEW_SMALL_INT(sdcard_status);
 }
-STATIC MP_DEFINE_CONST_FUN_OBJ_0(esp_sdcard_init_obj, esp_sdcard_init);
+STATIC MP_DEFINE_CONST_FUN_OBJ_1(esp_sdcard_init_obj, esp_sdcard_init);
 
 //-------------------------------------------------------------------------
 STATIC mp_obj_t esp_sdcard_read(mp_obj_t ulSectorNumber, mp_obj_t buf_in) {
@@ -395,10 +294,6 @@ STATIC mp_obj_t esp_sdcard_read(mp_obj_t ulSectorNumber, mp_obj_t buf_in) {
     if (res != ESP_OK) {
         mp_raise_OSError(MP_EIO);
     }
-
-    #if DEBUG_ON
-    printf("[SD] read sect=%d, count=%d, size=%d\n", sect_num, sect_count, bufinfo.len);
-    #endif
     return mp_const_none;
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_2(esp_sdcard_read_obj, esp_sdcard_read);
@@ -432,10 +327,6 @@ STATIC mp_obj_t esp_sdcard_write(mp_obj_t ulSectorNumber, mp_obj_t buf_in) {
     if (res != ESP_OK) {
         mp_raise_OSError(MP_EIO);
     }
-
-    #if DEBUG_ON
-    printf("[SD] write sect=%d, count=%d, size=%d\n", sect_num, sect_count, bufinfo.len);
-    #endif
     return mp_const_none;
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_2(esp_sdcard_write_obj, esp_sdcard_write);
@@ -484,22 +375,24 @@ STATIC MP_DEFINE_CONST_FUN_OBJ_3(esp_neopixel_write_obj, esp_neopixel_write_);
 STATIC const mp_rom_map_elem_t esp_module_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR___name__), MP_ROM_QSTR(MP_QSTR_esp) },
 
+    { MP_ROM_QSTR(MP_QSTR_neopixel_write), MP_ROM_PTR(&esp_neopixel_write_obj) },
+    { MP_ROM_QSTR(MP_QSTR_dht_readinto), MP_ROM_PTR(&dht_readinto_obj) },
+
     { MP_ROM_QSTR(MP_QSTR_flash_read), MP_ROM_PTR(&esp_flash_read_obj) },
     { MP_ROM_QSTR(MP_QSTR_flash_write), MP_ROM_PTR(&esp_flash_write_obj) },
     { MP_ROM_QSTR(MP_QSTR_flash_erase), MP_ROM_PTR(&esp_flash_erase_obj) },
     { MP_ROM_QSTR(MP_QSTR_flash_size), MP_ROM_PTR(&esp_flash_size_obj) },
     { MP_ROM_QSTR(MP_QSTR_flash_user_start), MP_ROM_PTR(&esp_flash_user_start_obj) },
     { MP_ROM_QSTR(MP_QSTR_flash_sec_size), MP_ROM_PTR(&esp_flash_sec_size_obj) },
-    { MP_ROM_QSTR(MP_QSTR_flash_use_wl), MP_ROM_PTR(&esp_flash_use_wl_obj) },
-
-    { MP_ROM_QSTR(MP_QSTR_neopixel_write), MP_ROM_PTR(&esp_neopixel_write_obj) },
-    { MP_ROM_QSTR(MP_QSTR_dht_readinto), MP_ROM_PTR(&dht_readinto_obj) },
 
     { MP_ROM_QSTR(MP_QSTR_sdcard_read), MP_ROM_PTR(&esp_sdcard_read_obj) },
     { MP_ROM_QSTR(MP_QSTR_sdcard_write), MP_ROM_PTR(&esp_sdcard_write_obj) },
     { MP_ROM_QSTR(MP_QSTR_sdcard_init), MP_ROM_PTR(&esp_sdcard_init_obj) },
     { MP_ROM_QSTR(MP_QSTR_sdcard_sect_count), MP_ROM_PTR(&esp_sdcard_sect_count_obj) },
     { MP_ROM_QSTR(MP_QSTR_sdcard_sect_size), MP_ROM_PTR(&esp_sdcard_sect_size_obj) },
+    // class constants
+    { MP_ROM_QSTR(MP_QSTR_SD_1LINE), MP_ROM_INT(1) },
+    { MP_ROM_QSTR(MP_QSTR_SD_4LINE), MP_ROM_INT(4) },
 };
 
 STATIC MP_DEFINE_CONST_DICT(esp_module_globals, esp_module_globals_table);

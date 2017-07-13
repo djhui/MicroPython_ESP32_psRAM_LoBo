@@ -204,7 +204,16 @@ esp_err_t i2s_set_clk(i2s_port_t i2s_num, uint32_t rate, i2s_bits_per_sample_t b
 
     i2s_stop(i2s_num);
 
-    p_i2s_obj[i2s_num]->channel_num = (ch == 2) ? 2 : 1;
+    uint32_t cur_mode = 0;
+    if (p_i2s_obj[i2s_num]->channel_num != ch) {
+        p_i2s_obj[i2s_num]->channel_num = (ch == 2) ? 2 : 1;
+        cur_mode = I2S[i2s_num]->fifo_conf.tx_fifo_mod;
+        I2S[i2s_num]->fifo_conf.tx_fifo_mod = (ch == 2) ? cur_mode - 1 : cur_mode + 1;
+        cur_mode = I2S[i2s_num]->fifo_conf.rx_fifo_mod;
+        I2S[i2s_num]->fifo_conf.rx_fifo_mod = (ch == 2) ? cur_mode -1  : cur_mode + 1;
+        I2S[i2s_num]->conf_chan.tx_chan_mod = (ch == 2) ? 0 : 1;
+        I2S[i2s_num]->conf_chan.rx_chan_mod = (ch == 2) ? 0 : 1;
+    }
 
     if (bits != p_i2s_obj[i2s_num]->bits_per_sample) {
 
@@ -859,8 +868,9 @@ esp_err_t i2s_driver_install(i2s_port_t i2s_num, const i2s_config_t *i2s_config,
         err = i2s_isr_register(i2s_num, i2s_config->intr_alloc_flags, i2s_intr_handler_default, p_i2s_obj[i2s_num], &p_i2s_obj[i2s_num]->i2s_isr_handle);
         if (err != ESP_OK) {
             free(p_i2s_obj[i2s_num]);
+            p_i2s_obj[i2s_num] = NULL;
             ESP_LOGE(I2S_TAG, "Register I2S Interrupt error");
-            return ESP_FAIL;
+            return err;
         }
         i2s_stop(i2s_num);
         i2s_param_config(i2s_num, i2s_config);

@@ -41,5 +41,7 @@ void mpsleep_init0 (void);
 void mpsleep_signal_soft_reset (void);
 mpsleep_reset_cause_t mpsleep_get_reset_cause (void);
 mpsleep_wake_reason_t mpsleep_get_wake_reason (void);
+void mpsleep_get_reset_desc (char *reset_reason);
+void mpsleep_get_wake_desc (char *wake_reason);
 
 #endif /* MPSLEEP_H_ */

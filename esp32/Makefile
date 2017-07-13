@@ -34,7 +34,7 @@ ESPTOOL ?= $(ESPCOMP)/esptool_py/esptool/esptool.py
 ESPMONITOR ?= $(ESPIDF)/tools/idf_monitor.py
 
 # verify the ESP IDF version
-ESPIDF_SUPHASH := 9b955f4c9f1b32652ea165d3e4cdaad01bba170e
+ESPIDF_SUPHASH := aad70f2208934f819a047d5802fe00c5626d4b4f
 ESPIDF_CURHASH := $(shell git -C $(ESPIDF) show -s --pretty=format:'%H')
 ifneq ($(ESPIDF_CURHASH),$(ESPIDF_SUPHASH))
 $(info ** WARNING **)
@@ -656,7 +656,7 @@ $(BUILD)/esp32_out.ld: sdkconfig.h
 
 $(BUILD)/application.bin: $(BUILD)/application.elf
 	$(ECHO) "Create $@"
-	$(Q)$(ESPTOOL) --chip esp32 elf2image --flash_mode $(FLASH_MODE) --flash_freq $(FLASH_FREQ) --flash_size $(FLASH_SIZE) $<
+	$(Q)$(ESPTOOL) --chip esp32 --port $(PORT) --baud $(BAUD) --after no_reset elf2image --flash_mode $(FLASH_MODE) --flash_freq $(FLASH_FREQ) --flash_size $(FLASH_SIZE) $<
 
 $(BUILD)/application.elf: $(OBJ) $(BUILD)/esp32_out.ld
 	$(ECHO) "LINK $@"
@@ -697,6 +697,7 @@ BOOTLOADER_OBJ = $(addprefix $(BUILD)/bootloader/$(ESPCOMP)/,\
 	soc/esp32/rtc_time.o \
 	micro-ecc/micro-ecc/uECC.o \
 	bootloader/src/main/bootloader_start.o \
+	bootloader/src/main/flash_qio_mode.o \
 	)
 
 BOOTLOADER_LIBS =
@@ -732,7 +733,7 @@ $(BUILD)/bootloader/%.o: %.c
 
 $(BUILD)/bootloader.bin: $(BUILD)/bootloader.elf
 	$(ECHO) "Create $@"
-	$(Q)$(ESPTOOL) --chip esp32 elf2image --flash_mode $(FLASH_MODE) --flash_freq $(FLASH_FREQ) --flash_size $(FLASH_SIZE) $<
+	$(Q)$(ESPTOOL) --chip esp32 --port $(PORT) --baud $(BAUD) --after no_reset elf2image --flash_mode $(FLASH_MODE) --flash_freq $(FLASH_FREQ) --flash_size $(FLASH_SIZE) $<
 
 $(BUILD)/bootloader.elf: $(BOOTLOADER_OBJ)
 	$(ECHO) "LINK $@"

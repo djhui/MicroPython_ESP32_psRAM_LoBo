@@ -1,6 +1,8 @@
 /*
  * Copyright (c) 2016, Pycom Limited.
  *
+ * Modified by LoBo (https://github.com/loboris) 07/2017
+ * 
  * This software is licensed under the GNU GPL version 3 or any
  * later version, with permitted additional terms. For more information
  * see the Pycom Licence v1.0 document supplied with this file, or
@@ -16,10 +18,8 @@
 #include "py/obj.h"
 #include "py/objstr.h"
 #include "py/runtime.h"
-//#include "timeutils.h"
 #include "timeutils_epoch.h"
 #include "esp_system.h"
-//#include "mpexception.h"
 #include "machrtc.h"
 #include "soc/rtc.h"
 #include "esp_clk.h"
@@ -64,57 +64,8 @@ machine_rtc_config_t machine_rtc_config = { 0 };
 
 
 #define DEFAULT_SNTP_SERVER                     "pool.ntp.org"
-#define RTC_SOURCE_INTERNAL_RC                  RTC_SLOW_FREQ_RTC
-#define RTC_SOURCE_EXTERNAL_XTAL                RTC_SLOW_FREQ_32K_XTAL
 
-#define XTAL_32K_DETECT_CYCLES  32
-#define SLOW_CLK_CAL_CYCLES     CONFIG_ESP32_RTC_CLK_CAL_CYCLES
-
-/******************************************************************************
- DECLARE PRIVATE DATA
- ******************************************************************************/
-
-static uint32_t s_rtc_slow_clk_cal = 0;
-
-static void select_rtc_slow_clk(rtc_slow_freq_t slow_clk)
-{
-    if (slow_clk == RTC_SLOW_FREQ_32K_XTAL) {
-        /* 32k XTAL oscillator needs to be enabled and running before it can
-         * be used. Hardware doesn't have a direct way of checking if the
-         * oscillator is running. Here we use rtc_clk_cal function to count
-         * the number of main XTAL cycles in the given number of 32k XTAL
-         * oscillator cycles. If the 32k XTAL has not started up, calibration
-         * will time out, returning 0.
-         */
-        rtc_clk_32k_enable(true);
-        uint32_t cal_val = 0;
-        uint32_t wait = 0;
-        // increment of 'wait' counter equivalent to 3 seconds
-        const uint32_t warning_timeout = 3 /* sec */ * 32768 /* Hz */ / (2 * XTAL_32K_DETECT_CYCLES);
-        ESP_EARLY_LOGD("[clk]", "waiting for 32k oscillator to start up")
-        do {
-            ++wait;
-            cal_val = rtc_clk_cal(RTC_CAL_32K_XTAL, XTAL_32K_DETECT_CYCLES);
-            if (wait % warning_timeout == 0) {
-                ESP_EARLY_LOGW("[clk]", "still waiting for 32k oscillator to start up");
-            }
-        } while (cal_val == 0);
-        ESP_EARLY_LOGD("[clk]", "32k oscillator ready, wait=%d", wait);
-    }
-    rtc_clk_slow_freq_set(slow_clk);
-    if (SLOW_CLK_CAL_CYCLES > 0) {
-        /* TODO: 32k XTAL oscillator has some frequency drift at startup.
-         * Improve calibration routine to wait until the frequency is stable.
-         */
-        s_rtc_slow_clk_cal = rtc_clk_cal(RTC_CAL_RTC_MUX, SLOW_CLK_CAL_CYCLES);
-    } else {
-        const uint64_t cal_dividend = (1ULL << RTC_CLK_CAL_FRACT) * 1000000ULL;
-        s_rtc_slow_clk_cal = (uint32_t) (cal_dividend / rtc_clk_slow_freq_get_hz());
-    }
-    ESP_EARLY_LOGD("[clk]", "RTC_SLOW_CLK calibration value: %d", s_rtc_slow_clk_cal);
-}
-
-
+//------------------------------
 typedef struct _mach_rtc_obj_t {
     mp_obj_base_t base;
     mp_obj_t sntp_server_name;
@@ -156,6 +107,7 @@ uint64_t mach_rtc_get_us_since_epoch(void) {
 STATIC uint64_t mach_rtc_datetime_us(const mp_obj_t datetime) {
     timeutils_struct_time_t tm;
     uint64_t useconds;
+    uint32_t seconds;
 
     // set date and time
     mp_obj_t *items;
@@ -190,7 +142,14 @@ STATIC uint64_t mach_rtc_datetime_us(const mp_obj_t datetime) {
     } else {
         tm.tm_hour = mp_obj_get_int(items[3]);
     }
-    useconds += 1000000ull * timeutils_seconds_since_epoch(tm.tm_year, tm.tm_mon, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec);
+    seconds = timeutils_seconds_since_epoch(tm.tm_year, tm.tm_mon, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec);
+    useconds += 1000000ull * seconds;
+
+    struct timeval now;
+    now.tv_sec = seconds;
+    now.tv_usec = 0;
+    settimeofday(&now, NULL);
+
     return useconds;
 }
 
@@ -242,14 +201,6 @@ STATIC mp_obj_t mach_rtc_make_new(const mp_obj_type_t *type, mp_uint_t n_args, m
         mach_rtc_datetime(args[1].u_obj);
     }
 
-    // change the RTC clock source
-    if (args[2].u_obj != mp_const_none) {
-        struct timeval now;
-        gettimeofday(&now, NULL);
-        select_rtc_slow_clk(mp_obj_get_int(args[2].u_obj));
-        settimeofday(&now, NULL);
-    }
-
     // return constant object
     return (mp_obj_t)&mach_rtc_obj;
 }
@@ -299,8 +250,8 @@ STATIC mp_obj_t mach_rtc_ntp_sync(size_t n_args, const mp_obj_t *pos_args, mp_ma
     mp_arg_parse_all(n_args - 1, pos_args + 1, kw_args, MP_ARRAY_SIZE(allowed_args), allowed_args, args);
 
     sntp_update_period = args[1].u_int * 1000;
-    if (sntp_update_period < 15000) {
-        nlr_raise(mp_obj_new_exception_msg(&mp_type_ValueError, "update period cannot be shorter than 15 s"));
+    if (sntp_update_period < 60000) {
+        nlr_raise(mp_obj_new_exception_msg(&mp_type_ValueError, "update period cannot be shorter than 60 s"));
     }
 
     mach_rtc_obj.synced = false;
@@ -308,11 +259,28 @@ STATIC mp_obj_t mach_rtc_ntp_sync(size_t n_args, const mp_obj_t *pos_args, mp_ma
         sntp_stop();
     }
 
+    sntp_setoperatingmode(SNTP_OPMODE_POLL);
     self->sntp_server_name = args[0].u_obj;
     sntp_setservername(0, (char *)mp_obj_str_get_str(self->sntp_server_name));
     if (strlen(sntp_getservername(0)) == 0) {
         sntp_setservername(0, DEFAULT_SNTP_SERVER);
     }
+
+    // set datetime to 1970/01/01 (epoch=0)
+    // for 'synced' method to corectly detect synchronization
+    mp_obj_t tuple[8] = {
+        mp_obj_new_int(1970),
+        mp_obj_new_int(1),
+        mp_obj_new_int(1),
+        mp_obj_new_int(0),
+        mp_obj_new_int(0),
+        mp_obj_new_int(0),
+        mp_obj_new_int(0),
+        mp_const_none
+    };
+    mp_obj_t settime = mp_obj_new_tuple(8, tuple);
+    mach_rtc_datetime(settime);
+
     sntp_init();
 
     return mp_const_none;
@@ -321,12 +289,13 @@ STATIC MP_DEFINE_CONST_FUN_OBJ_KW(mach_rtc_ntp_sync_obj, 1, mach_rtc_ntp_sync);
 
 //------------------------------------------------------
 STATIC mp_obj_t mach_rtc_has_synced (mp_obj_t self_in) {
-    time_t now;
-    struct tm timeinfo;
-    time(&now);
-    localtime_r(&now, &timeinfo);
-    // Is time set? If not, tm_year will be (1970 - 1900).
-    if (timeinfo.tm_year > (2016 - 1900)) {
+    uint32_t seconds;
+
+    // get the time from the RTC
+    seconds = mach_rtc_get_us_since_epoch() / 1000000ull;
+
+    // check if date > 2017/01/01
+    if (seconds > 1483228800) {
         mach_rtc_obj.synced = true;
     }
     else {
@@ -416,11 +385,8 @@ STATIC const mp_map_elem_t mach_rtc_locals_dict_table[] = {
     { MP_OBJ_NEW_QSTR(MP_QSTR_now),                 (mp_obj_t)&mach_rtc_now_obj },
     { MP_OBJ_NEW_QSTR(MP_QSTR_ntp_sync),            (mp_obj_t)&mach_rtc_ntp_sync_obj },
     { MP_OBJ_NEW_QSTR(MP_QSTR_synced),              (mp_obj_t)&mach_rtc_has_synced_obj },
-    { MP_OBJ_NEW_QSTR(MP_QSTR_wake_on_ext0), (mp_obj_t)&machine_rtc_wake_on_ext0_obj },
-    { MP_OBJ_NEW_QSTR(MP_QSTR_wake_on_ext1), (mp_obj_t)&machine_rtc_wake_on_ext1_obj },
-
-    { MP_OBJ_NEW_QSTR(MP_QSTR_INTERNAL_RC),         MP_OBJ_NEW_SMALL_INT(RTC_SOURCE_INTERNAL_RC) },
-    { MP_OBJ_NEW_QSTR(MP_QSTR_XTAL_32KHZ),          MP_OBJ_NEW_SMALL_INT(RTC_SOURCE_EXTERNAL_XTAL) },
+    { MP_OBJ_NEW_QSTR(MP_QSTR_wake_on_ext0),        (mp_obj_t)&machine_rtc_wake_on_ext0_obj },
+    { MP_OBJ_NEW_QSTR(MP_QSTR_wake_on_ext1),        (mp_obj_t)&machine_rtc_wake_on_ext1_obj },
 };
 STATIC MP_DEFINE_CONST_DICT(mach_rtc_locals_dict, mach_rtc_locals_dict_table);
 

@@ -1,13 +1,19 @@
 """
-Micro Python driver for SD cards using sd_emmc driver.
+Micro Python driver for SD cards using esp-idf sd_emmc driver.
 
 Example usage on ESP32:
 
-    import sdcard, uos
-    sd = sdcard.SDCard()
+    import sdcard, uos, esp
+    sd = sdcard.SDCard(esp.SD_1LINE)
     vfs = uos.VfsFat(sd)
     uos.mount(vfs, '/sd')
     uos.chdir('/sd')
+    uos.listdir()
+    
+If 'automount' is used
+
+    import sdcard, uos
+    sd = sdcard.SDCard(esp.SD_4LINE, True)
     uos.listdir()
 
 """
@@ -15,12 +21,13 @@ Example usage on ESP32:
 import esp
 
 class SDCard:
-    def __init__(self, automount):
-        self.SD_FOUND = esp.sdcard_init()
+    def __init__(self, mode, automount):
+        self.SD_FOUND = esp.sdcard_init(mode)
         self.SEC_COUNT = esp.sdcard_sect_count()
         self.SEC_SIZE = esp.sdcard_sect_size()
         self.SIZE = self.SEC_SIZE * self.SEC_COUNT
-        if self.SD_FOUND == 0 and automount == 1:
+        # automount sdcard if requested
+        if self.SD_FOUND == 0 and automount:
             import uos
             vfs = uos.VfsFat(self)
             uos.mount(vfs, '/sd')
@@ -37,11 +44,3 @@ class SDCard:
         esp.sdcard_write(block_num, buf)
         return 0
 
-"""
-    def ioctl(self, op, arg):
-        #print("ioctl(%d, %r)" % (op, arg))
-        if op == 4:  # BP_IOCTL_SEC_COUNT
-            return self.SEC_COUNT
-        if op == 5:  # BP_IOCTL_SEC_SIZE
-            return self.SEC_SIZE
-"""

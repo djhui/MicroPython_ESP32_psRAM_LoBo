@@ -29,12 +29,12 @@
 
 #include <stdint.h>
 #include <stdio.h>
+#include <string.h>
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "rom/ets_sys.h"
 #include "esp_system.h"
-#include "esp_deep_sleep.h"
 
 #include "py/obj.h"
 #include "py/runtime.h"
@@ -43,6 +43,7 @@
 #include "extmod/machine_i2c.h"
 //#include "extmod/machine_spi.h"
 #include "modmachine.h"
+#include "esp_deep_sleep.h"
 #include "mpsleep.h"
 #include "machrtc.h"
 
@@ -102,7 +103,11 @@ STATIC mp_obj_t machine_enable_irq(mp_obj_t state_in) {
 MP_DEFINE_CONST_FUN_OBJ_1(machine_enable_irq_obj, machine_enable_irq);
 
 
-// ===== LoBo========================================================================================
+//---------------------------------------
+STATIC mp_obj_t machine_free_heap(void) {
+    return mp_obj_new_int(xPortGetFreeHeapSize());
+}
+MP_DEFINE_CONST_FUN_OBJ_0(machine_free_heap_obj, machine_free_heap);
 
 //--------------------------------------------------------------------
 STATIC mp_obj_t machine_deepsleep(size_t n_args, const mp_obj_t *pos_args, mp_map_t *kw_args) {
@@ -143,32 +148,28 @@ STATIC MP_DEFINE_CONST_FUN_OBJ_KW(machine_deepsleep_obj, 0,  machine_deepsleep);
 
 //------------------------------------------
 STATIC mp_obj_t machine_wake_reason (void) {
+    mpsleep_reset_cause_t reset_reason = mpsleep_get_reset_cause ();
     mpsleep_wake_reason_t wake_reason = mpsleep_get_wake_reason();
     mp_obj_t tuple[2];
-    mp_obj_t pins = mp_const_none;
 
     tuple[0] = mp_obj_new_int(wake_reason);
-    if (wake_reason == MPSLEEP_GPIO_WAKE) {
-        /*
-        pins = mp_obj_new_list(0, NULL);
-        uint64_t wake_pins = esp_deep_sleep_get_ext1_wakeup_status();
-        printf("wake pins = %x:%x\n", (uint32_t)(wake_pins >> 32), (uint32_t)(wake_pins & 0xFFFFFFFF));
-        uint64_t mask = 1;
-
-        for (int i = 0; i < 40; i++) {
-            if (mask & wake_pins) {
-                mp_obj_list_append(pins, pin_find_pin_by_num(&pin_cpu_pins_locals_dict, i));
-            }
-            mask <<= 1ull;
-            printf("mask = %x:%x\n", (uint32_t)(mask >> 32), (uint32_t)(mask & 0xFFFFFFFF));
-        }
-        */
-    }
-    tuple[1] = pins;
+    tuple[1] = mp_obj_new_int(reset_reason);
     return mp_obj_new_tuple(2, tuple);
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_0(machine_wake_reason_obj, machine_wake_reason);
 
+//----------------------------------------
+STATIC mp_obj_t machine_wake_desc (void) {
+    char reason[24] = { 0 };
+    mp_obj_t tuple[2];
+
+    mpsleep_get_reset_desc(reason);
+    tuple[0] = mp_obj_new_str(reason, strlen(reason), 0);
+    mpsleep_get_wake_desc(reason);
+    tuple[1] = mp_obj_new_str(reason, strlen(reason), 0);
+    return mp_obj_new_tuple(2, tuple);
+}
+STATIC MP_DEFINE_CONST_FUN_OBJ_0(machine_wake_desc_obj, machine_wake_desc);
 
 
 STATIC const mp_rom_map_elem_t machine_module_globals_table[] = {
@@ -184,6 +185,8 @@ STATIC const mp_rom_map_elem_t machine_module_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_idle), MP_ROM_PTR(&machine_idle_obj) },
     { MP_OBJ_NEW_QSTR(MP_QSTR_deepsleep), MP_ROM_PTR(&machine_deepsleep_obj) },
     { MP_OBJ_NEW_QSTR(MP_QSTR_wake_reason), MP_ROM_PTR(&machine_wake_reason_obj) },
+    { MP_OBJ_NEW_QSTR(MP_QSTR_wake_description), MP_ROM_PTR(&machine_wake_desc_obj) },
+    { MP_ROM_QSTR(MP_QSTR_free_heap), MP_ROM_PTR(&machine_free_heap_obj) },
 
     { MP_ROM_QSTR(MP_QSTR_disable_irq), MP_ROM_PTR(&machine_disable_irq_obj) },
     { MP_ROM_QSTR(MP_QSTR_enable_irq), MP_ROM_PTR(&machine_enable_irq_obj) },

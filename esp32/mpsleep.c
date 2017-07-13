@@ -21,29 +21,16 @@
 #include "mpsleep.h"
 
 /******************************************************************************
- DECLARE PRIVATE CONSTANTS
- ******************************************************************************/
-
-/******************************************************************************
- DEFINE PRIVATE TYPES
- ******************************************************************************/
-
-/******************************************************************************
  DECLARE PRIVATE DATA
  ******************************************************************************/
 STATIC mpsleep_reset_cause_t mpsleep_reset_cause = MPSLEEP_PWRON_RESET;
 STATIC mpsleep_wake_reason_t mpsleep_wake_reason = MPSLEEP_PWRON_WAKE;
 
 /******************************************************************************
- DECLARE PRIVATE FUNCTIONS
- ******************************************************************************/
-
-/******************************************************************************
  DEFINE PUBLIC FUNCTIONS
  ******************************************************************************/
 void mpsleep_init0 (void) {
     // check the reset casue (if it's soft reset, leave it as it is)
-    printf("RESET: %02x  %02x\n", rtc_get_reset_reason(0), esp_deep_sleep_get_wakeup_cause());
     switch (rtc_get_reset_reason(0)) {
         case TG0WDT_SYS_RESET:
             mpsleep_reset_cause = MPSLEEP_WDT_RESET;
@@ -92,6 +79,48 @@ mpsleep_wake_reason_t mpsleep_get_wake_reason (void) {
     return mpsleep_wake_reason;
 }
 
-/******************************************************************************
- DEFINE PRIVATE FUNCTIONS
- ******************************************************************************/
+void mpsleep_get_reset_desc (char *reset_reason) {
+    switch (mpsleep_reset_cause) {
+        case MPSLEEP_PWRON_RESET:
+            sprintf(reset_reason, "Power on reset");
+            break;
+        case MPSLEEP_HARD_RESET:
+            sprintf(reset_reason, "Hard reset");
+            break;
+        case MPSLEEP_WDT_RESET:
+            sprintf(reset_reason, "WDT reset");
+            break;
+        case MPSLEEP_DEEPSLEEP_RESET:
+            sprintf(reset_reason, "Deepsleep reset");
+            break;
+        case MPSLEEP_SOFT_RESET:
+            sprintf(reset_reason, "Soft reset");
+            break;
+        case MPSLEEP_BROWN_OUT_RESET:
+            sprintf(reset_reason, "Brownout reset");
+            break;
+        default:
+            sprintf(reset_reason, "Unknown reset reason");
+            break;
+    }
+}
+
+void mpsleep_get_wake_desc (char *wake_reason) {
+    switch (mpsleep_wake_reason) {
+        case MPSLEEP_PWRON_WAKE:
+            sprintf(wake_reason, "Power on wake");
+            break;
+        case MPSLEEP_GPIO_WAKE:
+            sprintf(wake_reason, "GPIO wake");
+            break;
+        case MPSLEEP_RTC_WAKE:
+            sprintf(wake_reason, "RTC wake");
+            break;
+        case MPSLEEP_ULP_WAKE:
+            sprintf(wake_reason, "ULP wake");
+            break;
+        default:
+            sprintf(wake_reason, "Unknown wake reason");
+            break;
+    }
+}

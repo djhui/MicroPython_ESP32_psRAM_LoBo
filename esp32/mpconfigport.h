@@ -54,7 +54,7 @@
 #define MICROPY_SCHEDULER_DEPTH             (8)
 #define MICROPY_VFS                         (1)
 #define MICROPY_VFS_FAT                     (1)
-#define MICROPY_VFS_SPIFFS                  (1)
+#define MICROPY_VFS_SPIFFS                  (0)
 
 // control over Python builtins
 #define MICROPY_PY_FUNCTION_ATTRS           (1)
@@ -149,6 +149,15 @@
 #define MICROPY_FATFS_LFN_CODE_PAGE         (437) /* 1=SFN/ANSI 437=LFN/U.S.(OEM) */
 #define mp_type_fileio                      fatfs_type_fileio
 #define mp_type_textio                      fatfs_type_textio
+
+// internal flash file system configuration
+#define MICROPY_INTERNALFS_START            (0x180000)
+#define MICROPY_INTERNALFS_SIZE             (0x200000)
+#define MICROPY_INTERNALFS_ENCRIPTED        (0)
+
+// sdcard using ESP32 sdmmc driver configuration
+#define MICROPY_SDMMC_USE_DRIVER            (1)
+#define MICROPY_SDMMC_SHOW_INFO             (1)
 
 // use vfs's functions for import stat and builtin open
 #define mp_import_stat mp_vfs_import_stat

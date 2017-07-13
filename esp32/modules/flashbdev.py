@@ -5,13 +5,9 @@ class FlashBdev:
     FS_SIZE = esp.flash_size()
     SEC_SIZE = esp.flash_sec_size()
     START_SEC = esp.flash_user_start() // SEC_SIZE
-    FS_USE_WL = esp.flash_use_wl()
 
-    def __init__(self, blocks):
-        self.blocks = blocks
-        print("FlashBdev init: Size=" + str(self.FS_SIZE) + ", Blocks=" + str(self.blocks))
-        if self.FS_USE_WL > 0:
-            print("Using wear leveling FAT file system")
+    def __init__(self):
+        self.blocks = self.FS_SIZE // self.SEC_SIZE
 
     def readblocks(self, n, buf):
         #print("readblocks(%s, %x(%d))" % (n, id(buf), len(buf)))
@@ -31,10 +27,8 @@ class FlashBdev:
             return self.SEC_SIZE
 
 size = esp.flash_size()
-if size < 523264:
+if size < 512*1024:
     # flash too small for a filesystem
-    print("FlashBdev: no space for file system")
     bdev = None
 else:
-    # init with number of sectors
-    bdev = FlashBdev(size // FlashBdev.SEC_SIZE)
+    bdev = FlashBdev()

@@ -20,8 +20,6 @@ The latest stable esptool.py release can be installed from [pypi](http://pypi.py
 $ pip install esptool
 ```
 
-(Note: [stable esptool release](https://github.com/espressif/esptool/releases/) is currently v1.x series, which does not support ESP32. See next section for manual installation.)
-
 With some Python installations this may not work and you'll receive an error, try `python -m pip install esptool` or `pip2 install esptool`.
 
 After installing, you will have `esptool.py` installed into the default Python executables directory and you should be able to run it with the command `esptool.py`.
@@ -74,6 +72,8 @@ esptool.py --chip esp8266 elf2image my_app.elf
 
 This command does not require a serial connection.
 
+`elf2image` also accepts the [Flash Modes](#flash-modes) arguments `--flash_freq` and `--flash_mode`, which can be used to set the default values in the image header. This is important when generating any image which will be booted directly by the chip. These values can also be overwritten via the `write_flash` command, see the [write_flash command](#Writing-binaries-to-flash) for details.
+
 #### elf2image for ESP8266
 
 The default command output is two binary files: `my_app.elf-0x00000.bin` and `my_app.elf-0x40000.bin`. You can alter the firmware file name prefix using the `--output/-o` option.
@@ -86,13 +86,13 @@ esptool.py --chip esp8266 elf2image --version=2 -o my_app-ota.bin my_app.elf
 
 #### elf2image for ESP32
 
-For esp32, elf2image produces a single output file. By default this has the same name as the .elf file, with a .bin extension. ie:
+For esp32, elf2image produces a single output binary "image file". By default this has the same name as the .elf file, with a .bin extension. ie:
 
 ```
 esptool.py --chip esp32 elf2image my_esp32_app.elf
 ```
 
-In the above example, the output image would be called `my_esp32_app.bin`.
+In the above example, the output image file would be called `my_esp32_app.bin`.
 
 ### Writing binaries to flash
 
@@ -102,7 +102,7 @@ The binaries from elf2image or make_image can be sent to the chip via the serial
 esptool.py --port COM4 write_flash 0x1000 my_app-0x01000.bin
 ```
 
-For ESP8266 "Version 1" images, multiple flash addresses and file names can be given on the same command line:
+Multiple flash addresses and file names can be given on the same command line:
 
 ```
 esptool.py --port COM4 write_flash 0x00000 my_app.elf-0x00000.bin 0x40000 my_app.elf-0x40000.bin
@@ -110,33 +110,31 @@ esptool.py --port COM4 write_flash 0x00000 my_app.elf-0x00000.bin 0x40000 my_app
 
 The `--chip` argument is optional when writing to flash, esptool will detect the type of chip when it connects to the serial port.
 
-The --port argument specifies the serial port. This may take the form of something like COMx (Windows), /dev/ttyUSBx (Linux) or /dev/tty.usbserial (OS X) or similar names.
+The `--port` argument specifies the serial port. This may take the form of something like COMx (Windows), /dev/ttyUSBx (Linux) or /dev/tty.usbserial (OS X) or similar names.
 
-The next arguments to write_flash are one or more pairs of offset (address) and file name. When generating ESP8266 "version 1" images, the file names created by elf2image include the flash offsets as part of the file name. For "version 2" images, the bootloader and linker script you are using determines the flash offset.
+The next arguments to write_flash are one or more pairs of offset (address) and file name. When generating ESP8266 "version 1" images, the file names created by elf2image include the flash offsets as part of the file name. For other types of images, consult your SDK documentation to determine the files to flash at which offsets.
 
-You may need to specify arguments for [flash mode and flash size](#flash-modes) as well (flash size is autodetected in the recent versions and usually can be omitted). For example:
+You may also need to specify arguments for [flash mode and flash size](#flash-modes), if you wish to override the defaults. For example:
 
 ```
 esptool.py --port /dev/ttyUSB0 write_flash --flash_mode qio --flash_size 32m 0x0 bootloader.bin 0x1000 my_app.bin
 ```
 
-The [Flash Modes](#flash-modes) section below explains the meaning of these additional arguments.
+Since esptool v2.0, these options are not often needed as the default is to keep the flash mode and size from the `.bin` image file, and to detect the flash size. See the [Flash Modes](#flash-modes) section for more details.
 
-By default, uploads are compressed. The `-u/--no-compress` option disables this behaviour.
+By default, the serial transfer data is compressed for better performance. The `-u/--no-compress` option disables this behaviour.
 
 See the [Troubleshooting](#troubleshooting) section if the write_flash command is failing, or the flashed module fails to boot.
 
 ### Verifying flash
 
-You can verify an image in the flash by passing the `--verify` option to the `write_flash` command, or by using the standalone `verify_flash` command:
+`write_flash` always verifies the MD5 hash of data which is written to flash, so manual verification is not usually needed. However, if you wish to verify the flash contents then you can do so via the `verify_flash` command:
 
 ```
 ./esptool.py verify_flash 0x40000 my_app.elf-0x40000.bin
 ```
 
-In esptool.py,  a separate verification step is not usually necessary. At the end of the `write_flash` process, the flasher reads back all data from flash and calculates an md5 hash which is compared with the original data. Explicit verification is only necessary if you think flash has been corrupted or accidentally overwritten.
-
-NOTE: esptool.py may update the first 16 bytes of the default boot image (at offset 0 for ESP8266 or offset 0x1000 for ESP32) when writing it (see [Flash modes](#flash-modes)). This is to set the provided flash mode and flash size parameters for the ROM bootloader. If running `verify_flash` for a boot image of this type, pass matching versions of any `--flash_mode` or `--flash_size` arguments that were used for `write_flash`.
+NOTE: If verifying a default boot image (offset 0 for ESP8266 or offset 0x1000 for ESP32) then any `--flash_mode`, `--flash_size` and `--flash_freq` arguments which were passed to `write_flash` must also be passed to `verify_flash`. Otherwise, `verify_flash` will detect mismatches in the header of the image file.
 
 ### Manually assembling a firmware image
 
@@ -147,6 +145,8 @@ esptool.py --chip esp8266 make_image -f app.text.bin -a 0x40100000 -f app.data.b
 ```
 
 This command does not require a serial connection.
+
+Note: the make_image is currently only supported for ESP8266, not ESP32.
 
 ### Dumping Memory
 
@@ -175,6 +175,14 @@ The following commands for ESP32, bundled with esptool.py, are documented on the
 esptool.py flash_id
 ```
 
+Example output:
+
+```
+Manufacturer: e0
+Device: 4016
+Detected flash size: 4MB
+```
+
 Refer to [flashrom source code](http://code.coreboot.org/p/flashrom/source/tree/HEAD/trunk/flashchips.h) for flash chip manufacturer name and part number.
 
 #### Read internal chip id:
@@ -185,7 +193,7 @@ esptool.py chip_id
 
 On ESP8266, this is the same as the output of the `system_get_chip_id()` SDK function. The chip ID is four bytes long, the lower three bytes are the final bytes of the MAC address. The upper byte is zero on most (all?) ESP8266s.
 
-On ESP32, this ID is derived from the MAC address stored in on-chip efuse.
+On ESP32, this ID is derived from the base MAC address stored in on-chip efuse.
 
 ## Serial Connections
 
@@ -228,32 +236,40 @@ For more details on selecting the boot mode, see the following Wiki pages:
 
 ## Flash Modes
 
-`write_flash` and some other comands accept command line arguments to set flash mode, flash size and flash clock frequency. The chip needs correct mode, frequency and size settings in order to run correctly - although there is some flexibility.
+`write_flash` and some other comands accept command line arguments to set bootloader flash mode, flash size and flash clock frequency. The chip needs correct mode, frequency and size settings in order to run correctly - although there is some flexibility. A header at the beginning of a bootable image contains these values.
 
-These arguments must appear after `write_flash` on the command line, for example:
+To override these values, the options `--flash_mode`, `--flash_size` and/or `--flash_freq` must appear after `write_flash` on the command line, for example:
 
 ```
 esptool.py --port /dev/ttyUSB1 write_flash --flash_mode dio --flash_size 4MB 0x0 bootloader.bin
 ```
 
-When flashing a bootable image to an ESP8266 at offset 0x0, the image header bytes are updated automatically using these arguments. The same happens when flashing a bootable image to an ESP32 at offset 0x1000.
+These options are only consulted when flashing a bootable image to an ESP8266 at offset 0x0, or an ESP32 at offset 0x1000. These are addresses used by the ROM bootloader to load from flash. When flashing at all other offsets, these arguments are not used.
 
 ### Flash Mode (--flash_mode, -fm)
 
-These set Quad Flash I/O or Dual Flash I/O modes. Valid values are `qio`, `qout`, `dio`, `dout`. The default is `qio`. This parameter can also be specified using the environment variable `ESPTOOL_FM`.
+These set Quad Flash I/O or Dual Flash I/O modes. Valid values are `keep`, `qio`, `qout`, `dio`, `dout`. The default is `keep`, which keeps whatever value is already in the image file. This parameter can also be specified using the environment variable `ESPTOOL_FM`.
 
-Most boards use the default `qio`. Some ESP8266 modules, including the ESP-12E modules on some (not all) NodeMCU boards, are dual I/O and the firmware will only boot when flashed with `--flash_mode dio`. Most ESP32 modules are also dual I/O.
+Most boards use `qio` mode. Some ESP8266 modules, including the ESP-12E modules on some (not all) NodeMCU boards, are dual I/O and the firmware will only boot when flashed with `--flash_mode dio`. Most ESP32 modules are also dual I/O.
 
 In `qio` mode, two additional GPIOs (9 and 10) are used for SPI flash communications. If flash mode is set to `dio` then these pins are available for other purposes.
+
+### Flash Frequency (--flash_freq, -ff)
+
+Clock frequency for SPI flash interactions. Valid values are `keep`, `40m`, `26m`, `20m`, `80m` (MHz). The default is `keep`, which keeps whatever value is already in the image file. This parameter can also be specified using the environment variable `ESPTOOL_FF`.
+
+The flash chip connected to most chips works with 40MHz clock speeds, but you can try lower values if the device won't boot. The highest 80MHz flash clock speed will give best performance, but may cause crashing if the flash or board designis not capable of this speed.
 
 ### Flash Size (--flash_size, -fs)
 
 Size of the SPI flash, given in megabytes. Valid values vary by chip type:
 
-Chip     | Flash Sizes
----------|-----------------------------------------------------
-ESP8266  | 256KB, 512KB, 1MB, 2MB, 4MB, 2MB-c1, 4MB-c1, 4MB-c2
-ESP32    | 1MB, 2MB, 4MB, 8MB, 16MB
+Chip     | flash_size values
+---------|---------------------------------------------------------------
+ESP32    | `detect`, `1MB`, `2MB`, `4MB`, `8MB`, `16MB`
+ESP8266  | `detect`, `256KB`, `512KB`, `1MB`, `2MB`, `4MB`, `2MB-c1`, `4MB-c1`, `4MB-c2`, `8MB`, `16MB`
+
+For ESP8266, some [additional sizes & layouts for OTA "firmware slots" are available](#esp8266-and-flash-size).
 
 The default `--flash_size` parameter is `detect`, which tries to autodetect size based on SPI flash ID. If detection fails, a warning is printed and a default value of of `4MB` (4 megabytes) is used.
 
@@ -263,19 +279,29 @@ The default `flash_size`  parameter can also be overriden using the environment 
 
 #### ESP8266 and Flash Size
 
-The ESP8266 SDK stores WiFi configuration at the "end" of flash, and it finds the end using this size. However there is no downside to specifying a smaller flash size than you really have, as long as you don't need to write an image larger than the configured size.
+The ESP8266 SDK stores WiFi configuration at the "end" of flash, and it finds the end using this size. However there is no downside to specifying a smaller flash size than you really have, as long as you don't need to write an image larger than this size.
 
 ESP-12, ESP-12E and ESP-12F modules (and boards that use them such as NodeMCU, HUZZAH, etc.) usually have at least 4 megabyte / `4MB` (sometimes labelled 32 megabit) flash.
+
+If using OTA, some additional sizes & layouts for OTA "firmware slots" are available. If not using OTA updates then you can ignore these extra sizes:
+
+|flash_size arg | Number of OTA slots | OTA Slot Size | Non-OTA Space |
+|---------------|---------------------|---------------|---------------|
+|256KB          | 1 (no OTA)          | 256KB         | N/A           |
+|512KB          | 1 (no OTA)          | 512KB         | N/A           |
+|1MB            | 2                   | 512KB         | 0KB           |
+|2MB            | 2                   | 512KB         | 1024KB        |
+|4MB            | 2                   | 512KB         | 3072KB        |
+|2MB-c1         | 2                   | 1024KB        | 0KB           |
+|4MB-c1         | 2                   | 1024KB        | 2048KB        |
+|8MB [^]        | 2                   | 1024KB        | 6144KB        |
+|16MB [^]       | 2                   | 1024KB        | 14336KB       |
+
+* [^] Support for 8MB & 16MB flash size is not present in all ESP8266 SDKs. If your SDK doesn't support these flash sizes, use `--flash_size 4MB`.
 
 #### ESP32 and Flash Size
 
 The ESP32 esp-idf flashes a partition table to the flash at offset 0x8000. All of the partitions in this table must fit inside the configured flash size, otherwise the ESP32 will not work correctly.
-
-### Flash Frequency (--flash_freq, -ff)
-
-Clock frequency for SPI flash interactions. Valid values are 40m, 26m, 20m, 80m (MHz). The default is 40m (40MHz). This parameter can also be specified using the environment variable `ESPTOOL_FF`.
-
-The flash chip connected to most chips works with 40MHz clock speeds, but you can try lower values if the device won't boot.
 
 ## Advanced Options
 
