@@ -1,0 +1,13 @@
+build//home/LoBo2_Razno/ESP32/micropython-esp32-espidf_psram/components/xtensa-debug-module/eri.o: \
+ /home/LoBo2_Razno/ESP32/micropython-esp32-espidf_psram/components/xtensa-debug-module/eri.c \
+ /home/LoBo2_Razno/ESP32/micropython-esp32-espidf_psram/components/newlib/include/stdint.h \
+ /home/LoBo2_Razno/ESP32/micropython-esp32-espidf_psram/components/newlib/include/machine/_default_types.h \
+ /home/LoBo2_Razno/ESP32/micropython-esp32-espidf_psram/components/newlib/include/sys/features.h \
+ /home/LoBo2_Razno/ESP32/micropython-esp32-espidf_psram/components/newlib/include/sys/_intsup.h \
+ /home/LoBo2_Razno/ESP32/micropython-esp32-espidf_psram/components/xtensa-debug-module/include/eri.h
+ /home/LoBo2_Razno/ESP32/micropython-esp32-espidf_psram/components/xtensa-debug-module/eri.c :
+ /home/LoBo2_Razno/ESP32/micropython-esp32-espidf_psram/components/newlib/include/stdint.h :
+ /home/LoBo2_Razno/ESP32/micropython-esp32-espidf_psram/components/newlib/include/machine/_default_types.h :
+ /home/LoBo2_Razno/ESP32/micropython-esp32-espidf_psram/components/newlib/include/sys/features.h :
+ /home/LoBo2_Razno/ESP32/micropython-esp32-espidf_psram/components/newlib/include/sys/_intsup.h :
+ /home/LoBo2_Razno/ESP32/micropython-esp32-espidf_psram/components/xtensa-debug-module/include/eri.h :

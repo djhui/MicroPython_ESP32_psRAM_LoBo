@@ -1,0 +1,36 @@
+build/lib/libm/roundf.o: ../micropython/lib/libm/roundf.c \
+ ../micropython/lib/libm/libm.h \
+ /home/LoBo2_Razno/ESP32/micropython-esp32-espidf_psram/components/newlib/include/stdint.h \
+ /home/LoBo2_Razno/ESP32/micropython-esp32-espidf_psram/components/newlib/include/machine/_default_types.h \
+ /home/LoBo2_Razno/ESP32/micropython-esp32-espidf_psram/components/newlib/include/sys/features.h \
+ /home/LoBo2_Razno/ESP32/micropython-esp32-espidf_psram/components/newlib/include/sys/_intsup.h \
+ /home/LoBo2_Razno/ESP32/micropython-esp32-espidf_psram/components/newlib/include/math.h \
+ /home/LoBo2_Razno/ESP32/micropython-esp32-espidf_psram/components/newlib/include/sys/reent.h \
+ /home/LoBo2_Razno/ESP32/micropython-esp32-espidf_psram/components/newlib/include/_ansi.h \
+ /home/LoBo2_Razno/ESP32/micropython-esp32-espidf_psram/components/newlib/include/newlib.h \
+ /home/LoBo2_Razno/ESP32/micropython-esp32-espidf_psram/components/newlib/include/sys/config.h \
+ /home/LoBo2_Razno/ESP32/micropython-esp32-espidf_psram/components/newlib/include/machine/ieeefp.h \
+ /home/LoBo2_Razno/ESP32/micropython-esp32-espidf_psram/components/esp32/include/xtensa/config/core-isa.h \
+ /home/LoBo2_Razno/ESP32/xtensa-esp32-elf_psram/lib/gcc/xtensa-esp32-elf/5.2.0/include/stddef.h \
+ /home/LoBo2_Razno/ESP32/micropython-esp32-espidf_psram/components/newlib/include/sys/_types.h \
+ /home/LoBo2_Razno/ESP32/micropython-esp32-espidf_psram/components/newlib/include/machine/_types.h \
+ /home/LoBo2_Razno/ESP32/micropython-esp32-espidf_psram/components/newlib/include/sys/lock.h \
+ /home/LoBo2_Razno/ESP32/micropython-esp32-espidf_psram/components/newlib/include/_ansi.h
+../micropython/lib/libm/roundf.c :
+ ../micropython/lib/libm/libm.h :
+ /home/LoBo2_Razno/ESP32/micropython-esp32-espidf_psram/components/newlib/include/stdint.h :
+ /home/LoBo2_Razno/ESP32/micropython-esp32-espidf_psram/components/newlib/include/machine/_default_types.h :
+ /home/LoBo2_Razno/ESP32/micropython-esp32-espidf_psram/components/newlib/include/sys/features.h :
+ /home/LoBo2_Razno/ESP32/micropython-esp32-espidf_psram/components/newlib/include/sys/_intsup.h :
+ /home/LoBo2_Razno/ESP32/micropython-esp32-espidf_psram/components/newlib/include/math.h :
+ /home/LoBo2_Razno/ESP32/micropython-esp32-espidf_psram/components/newlib/include/sys/reent.h :
+ /home/LoBo2_Razno/ESP32/micropython-esp32-espidf_psram/components/newlib/include/_ansi.h :
+ /home/LoBo2_Razno/ESP32/micropython-esp32-espidf_psram/components/newlib/include/newlib.h :
+ /home/LoBo2_Razno/ESP32/micropython-esp32-espidf_psram/components/newlib/include/sys/config.h :
+ /home/LoBo2_Razno/ESP32/micropython-esp32-espidf_psram/components/newlib/include/machine/ieeefp.h :
+ /home/LoBo2_Razno/ESP32/micropython-esp32-espidf_psram/components/esp32/include/xtensa/config/core-isa.h :
+ /home/LoBo2_Razno/ESP32/xtensa-esp32-elf_psram/lib/gcc/xtensa-esp32-elf/5.2.0/include/stddef.h :
+ /home/LoBo2_Razno/ESP32/micropython-esp32-espidf_psram/components/newlib/include/sys/_types.h :
+ /home/LoBo2_Razno/ESP32/micropython-esp32-espidf_psram/components/newlib/include/machine/_types.h :
+ /home/LoBo2_Razno/ESP32/micropython-esp32-espidf_psram/components/newlib/include/sys/lock.h :
+ /home/LoBo2_Razno/ESP32/micropython-esp32-espidf_psram/components/newlib/include/_ansi.h :

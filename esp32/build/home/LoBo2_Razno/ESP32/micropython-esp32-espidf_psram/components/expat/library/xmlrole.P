@@ -1,0 +1,15 @@
+build//home/LoBo2_Razno/ESP32/micropython-esp32-espidf_psram/components/expat/library/xmlrole.o: \
+ /home/LoBo2_Razno/ESP32/micropython-esp32-espidf_psram/components/expat/library/xmlrole.c \
+ /home/LoBo2_Razno/ESP32/xtensa-esp32-elf_psram/lib/gcc/xtensa-esp32-elf/5.2.0/include/stddef.h \
+ /home/LoBo2_Razno/ESP32/micropython-esp32-espidf_psram/components/expat/include/expat/expat_external.h \
+ /home/LoBo2_Razno/ESP32/micropython-esp32-espidf_psram/components/expat/include/expat/internal.h \
+ /home/LoBo2_Razno/ESP32/micropython-esp32-espidf_psram/components/expat/include/expat/xmlrole.h \
+ /home/LoBo2_Razno/ESP32/micropython-esp32-espidf_psram/components/expat/include/expat/xmltok.h \
+ /home/LoBo2_Razno/ESP32/micropython-esp32-espidf_psram/components/expat/include/expat/ascii.h
+ /home/LoBo2_Razno/ESP32/micropython-esp32-espidf_psram/components/expat/library/xmlrole.c :
+ /home/LoBo2_Razno/ESP32/xtensa-esp32-elf_psram/lib/gcc/xtensa-esp32-elf/5.2.0/include/stddef.h :
+ /home/LoBo2_Razno/ESP32/micropython-esp32-espidf_psram/components/expat/include/expat/expat_external.h :
+ /home/LoBo2_Razno/ESP32/micropython-esp32-espidf_psram/components/expat/include/expat/internal.h :
+ /home/LoBo2_Razno/ESP32/micropython-esp32-espidf_psram/components/expat/include/expat/xmlrole.h :
+ /home/LoBo2_Razno/ESP32/micropython-esp32-espidf_psram/components/expat/include/expat/xmltok.h :
+ /home/LoBo2_Razno/ESP32/micropython-esp32-espidf_psram/components/expat/include/expat/ascii.h :

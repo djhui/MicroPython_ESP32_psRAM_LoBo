@@ -1,0 +1,15 @@
+build//home/LoBo2_Razno/ESP32/micropython-esp32-espidf_psram/components/mbedtls/library/net.o: \
+ /home/LoBo2_Razno/ESP32/micropython-esp32-espidf_psram/components/mbedtls/library/net.c \
+ /home/LoBo2_Razno/ESP32/micropython-esp32-espidf_psram/components/mbedtls/port/include/mbedtls/esp_config.h \
+ sdkconfig.h \
+ /home/LoBo2_Razno/ESP32/micropython-esp32-espidf_psram/components/mbedtls/include/mbedtls/check_config.h \
+ /home/LoBo2_Razno/ESP32/micropython-esp32-espidf_psram/components/newlib/include/limits.h \
+ /home/LoBo2_Razno/ESP32/micropython-esp32-espidf_psram/components/newlib/include/newlib.h \
+ /home/LoBo2_Razno/ESP32/xtensa-esp32-elf_psram/lib/gcc/xtensa-esp32-elf/5.2.0/include-fixed/limits.h
+ /home/LoBo2_Razno/ESP32/micropython-esp32-espidf_psram/components/mbedtls/library/net.c :
+ /home/LoBo2_Razno/ESP32/micropython-esp32-espidf_psram/components/mbedtls/port/include/mbedtls/esp_config.h :
+ sdkconfig.h :
+ /home/LoBo2_Razno/ESP32/micropython-esp32-espidf_psram/components/mbedtls/include/mbedtls/check_config.h :
+ /home/LoBo2_Razno/ESP32/micropython-esp32-espidf_psram/components/newlib/include/limits.h :
+ /home/LoBo2_Razno/ESP32/micropython-esp32-espidf_psram/components/newlib/include/newlib.h :
+ /home/LoBo2_Razno/ESP32/xtensa-esp32-elf_psram/lib/gcc/xtensa-esp32-elf/5.2.0/include-fixed/limits.h :
