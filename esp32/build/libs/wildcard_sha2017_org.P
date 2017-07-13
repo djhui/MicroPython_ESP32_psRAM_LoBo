@@ -1,2 +1,0 @@
-build/libs/wildcard_sha2017_org.o: libs/wildcard_sha2017_org.c
-libs/wildcard_sha2017_org.c :

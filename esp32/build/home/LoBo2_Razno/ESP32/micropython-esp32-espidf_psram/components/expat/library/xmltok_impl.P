@@ -1,3 +1,0 @@
-build//home/LoBo2_Razno/ESP32/micropython-esp32-espidf_psram/components/expat/library/xmltok_impl.o: \
- /home/LoBo2_Razno/ESP32/micropython-esp32-espidf_psram/components/expat/library/xmltok_impl.c
- /home/LoBo2_Razno/ESP32/micropython-esp32-espidf_psram/components/expat/library/xmltok_impl.c :
