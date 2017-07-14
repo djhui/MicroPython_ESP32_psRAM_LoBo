@@ -45,3 +45,4 @@ genrst/
 
 BUILD
 tests/
+xtensa-esp32-elf_psram/
