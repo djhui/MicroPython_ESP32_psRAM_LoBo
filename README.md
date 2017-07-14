@@ -3,7 +3,7 @@
 ---
 
 
-'''
+```
 
 I (47) boot: ESP-IDF  2nd stage bootloader
 I (47) boot: compile time 21:04:46
@@ -80,4 +80,4 @@ GC: total: 4097984, used: 811664, free: 3286320
  No. of 1-blocks: 133, 2-blocks: 19, max blk sz: 50000, max free sz: 205385
 >>> 
 
-'''
+```
