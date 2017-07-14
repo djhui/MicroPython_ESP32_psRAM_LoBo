@@ -87,6 +87,11 @@ void mp_task(void *pvParameter) {
     uart_init();
 
     mpsleep_init0();
+    char rst_reason[24] = { 0 };
+    mpsleep_get_reset_desc(rst_reason);
+    printf("Reset reason: %s Wakeup: ", rst_reason);
+    mpsleep_get_wake_desc(rst_reason);
+    printf("%s\n", rst_reason);
 
     if (mpsleep_get_reset_cause() != MPSLEEP_DEEPSLEEP_RESET) {
         rtc_init0();
