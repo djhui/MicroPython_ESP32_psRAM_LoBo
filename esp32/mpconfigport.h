@@ -208,7 +208,7 @@ extern const struct _mp_obj_module_t mp_module_network;
 #define MP_STATE_PORT MP_STATE_VM
 
 #define MICROPY_PORT_ROOT_POINTERS \
-    const char *readline_hist[8]; \
+    const char *readline_hist[80]; \
     mp_obj_t machine_pin_irq_handler[40]; \
 
 // type definitions for the specific machine

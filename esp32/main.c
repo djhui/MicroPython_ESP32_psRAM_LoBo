@@ -82,7 +82,6 @@ STATIC uint8_t *mp_task_heap;
 void mp_task(void *pvParameter) {
     volatile uint32_t sp = (uint32_t)get_sp();
     #if MICROPY_PY_THREAD
-    //mp_thread_init(&mp_task_stack[0], MP_TASK_STACK_LEN);
     mp_thread_init(mp_task_stack, MP_TASK_STACK_LEN);
     #endif
     uart_init();
@@ -151,7 +150,12 @@ void app_main(void) {
 
 	esp_log_level_set("*", ESP_LOG_ERROR);
 
-    printf("\nAllocating uPY stack, size=%d\n", MP_TASK_STACK_LEN);
+    #if CONFIG_FREERTOS_UNICORE
+    printf("\nFreeRTOS running only on FIRST CORE.\n");
+    #else
+    printf("\nFreeRTOS running on BOTH CORES, MicroPython task started on App Core.\n");
+    #endif
+    printf("\nAllocating uPY stack: size=%d bytes\n", MP_TASK_STACK_LEN);
     mp_task_stack = (StackType_t *)pvPortMallocCaps(MP_TASK_STACK_LEN, MALLOC_CAP_8BIT);
     if (mp_task_stack == NULL) {
         printf("Error, Halted\n");
@@ -160,13 +164,13 @@ void app_main(void) {
 
     // Allocate heap memory
     #if !CONFIG_MEMMAP_SPIRAM_ENABLE_MALLOC
-    printf("\nAllocating uPY heap (%d bytes) in SPIRAM using pvPortMallocCaps\n\n", MP_TASK_HEAP_SIZE);
+    printf("Allocating uPY heap:  size=%d bytes (in SPIRAM using pvPortMallocCaps)\n\n", MP_TASK_HEAP_SIZE);
     mp_task_heap = pvPortMallocCaps(MP_TASK_HEAP_SIZE, MALLOC_CAP_SPIRAM);
     #else
     #if CONFIG_MEMMAP_SPIRAM_ENABLE
-    printf("\nAllocating uPY heap (%d bytes) in SPIRAM using malloc\n\n", MP_TASK_HEAP_SIZE);
+    printf("Allocating uPY heap:  size=%d bytes (in SPIRAM using malloc)\n\n", MP_TASK_HEAP_SIZE);
     #else
-    printf("\nAllocating uPY heap (%d bytes) in DRAM using malloc\n\n", MP_TASK_HEAP_SIZE);
+    printf("Allocating uPY heap:  size=%d bytes\n\n", MP_TASK_HEAP_SIZE);
     #endif
     mp_task_heap = malloc(MP_TASK_HEAP_SIZE);
     #endif
@@ -175,8 +179,19 @@ void app_main(void) {
         return;
     }
 
-    //xTaskCreateStaticPinnedToCore(mp_task, "mp_task", MP_TASK_STACK_LEN, NULL, MP_TASK_PRIORITY, &mp_task_stack[0], &mp_task_tcb, 0);
-    xTaskCreateStaticPinnedToCore(mp_task, "mp_task", MP_TASK_STACK_LEN, NULL, MP_TASK_PRIORITY, mp_task_stack, &mp_task_tcb, 0);
+    #if MICROPY_PY_THREAD
+    #if CONFIG_FREERTOS_UNICORE
+    xTaskCreateStaticPinnedToCore(&mp_task, "mp_task", MP_TASK_STACK_LEN, NULL, MP_TASK_PRIORITY, mp_task_stack, &mp_task_tcb, 1);
+    #else
+    xTaskCreateStaticPinnedToCore(&mp_task, "mp_task", MP_TASK_STACK_LEN, NULL, MP_TASK_PRIORITY, mp_task_stack, &mp_task_tcb, 0);
+    #endif
+    #else
+    #if CONFIG_FREERTOS_UNICORE
+    xTaskCreatePinnedToCore(&mp_task, "mp_task", MP_TASK_STACK_LEN, NULL, MP_TASK_PRIORITY, NULL, 0);
+    #else
+    xTaskCreatePinnedToCore(&mp_task, "mp_task", MP_TASK_STACK_LEN, NULL, MP_TASK_PRIORITY, NULL, 1);
+    #endif
+    #endif
 }
 
 //-----------------------------

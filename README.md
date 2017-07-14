@@ -1,1 +1,5 @@
-# MicroPython_ESP32_psRAM_LoBo
+# MicroPython for ESP32-WROVER with 4MB of psRAM
+
+---
+
+

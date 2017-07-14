@@ -449,7 +449,7 @@ TOOLCHAIN_COMMIT_DESC := $(shell $(CC) --version | sed -E -n 's|xtensa-esp32-elf
 TOOLCHAIN_GCC_VER := $(shell $(CC) --version | sed -E -n 's|xtensa-esp32-elf-gcc.*\ \(.*\)\ (.*)|\1|gp')
 
 # Officially supported version(s)
-SUPPORTED_TOOLCHAIN_COMMIT_DESC := crosstool-NG crosstool-ng-1.22.0-61-gab8375a
+SUPPORTED_TOOLCHAIN_COMMIT_DESC := crosstool-NG crosstool-ng-1.22.0-64-g47d56ebd
 SUPPORTED_TOOLCHAIN_GCC_VERSIONS := 5.2.0
 
 ifdef TOOLCHAIN_COMMIT_DESC
