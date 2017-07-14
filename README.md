@@ -2,6 +2,28 @@
 
 ---
 
+Before building extract Xtensa toolchain from archive, then build using *BUILD.sh* script:
+
+
+```
+
+tar -xf xtensa-esp32-elf_psram.tar.xz
+
+./BUILD.sh
+
+or
+
+./BUILD.sh -j8
+
+then flash:
+
+./BUILD.sh deploy
+
+
+```
+
+---
+
 
 ```
 
