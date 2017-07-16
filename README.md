@@ -33,6 +33,7 @@ It is **huge difference** between MicroPython running with **less than 100KB** o
 * Files **timestamp** is correctly set to system time both on internal fat filesysten and on sdcard
 * Some additional frozen modules are added, like **pye** editor, **upip**, **urequests**, ...
 
+---
 
 There are some new configuration options in **mpconfigport.h** you may want to change:
 ```
@@ -49,7 +50,7 @@ There are some new configuration options in **mpconfigport.h** you may want to c
 #define MICROPY_TIMEZONE "CET-1CEST"
 ```
 
-There are few prepared **sdkconfig.h** configuration files you can use. You can copy any of them to sdkconfig.h
+There are couple of prepared **sdkconfig.h** configuration files you can use. You can copy any of them to sdkconfig.h
 
 The default is dualcore, DIO.
 
@@ -57,6 +58,8 @@ The default is dualcore, DIO.
 * **sdkconfig.h.qio**  dual core, QIO Flash mode
 * **sdkconfig.h.unicore**  one core, QIO Flash mode
 * **sdkconfig.h.nopsram**  does not use psRAM, can be used to build for **any** ESP32 module
+
+You can also go to the **esp-idf_BUILD** build directory to create your own **sdkconfig.h**. Look at *README.md* there for more information.
 
 ---
 
@@ -73,7 +76,7 @@ tar -xf xtensa-esp32-elf_psram.tar.xz
 ```
 Edit **BUILD.sh** script, and change if necessary, **PORT** and **BOUD** options. Leave all other options as is.
 
-You can also go to the **esp-idf_BUILD** build directory to create your own **sdkconfig.h**
+You can also go to the **esp-idf_BUILD** build directory to create your own **sdkconfig.h**. Look at *README.md* there for more information.
 
 To build the MicroPython firmware, run:
 ```
@@ -87,7 +90,7 @@ If no errors are detected, you can now flash the MicroPython firmware to your bo
 ```
 The board stays in bootloader mode. Run your terminal emulator and reset the board.
 
-You can also run *./BUILD.sh monitor* to use esp-idf's terminal program, it will reset the boars automatically. Look at *README.md* there for more information.
+You can also run *./BUILD.sh monitor* to use esp-idf's terminal program, it will reset the boars automatically.
 
 *After changing* **sdkconfig.h** *always run* **./BUILD clean** *before new build*
 
