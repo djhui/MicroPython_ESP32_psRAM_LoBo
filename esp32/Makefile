@@ -34,7 +34,7 @@ ESPTOOL ?= $(ESPCOMP)/esptool_py/esptool/esptool.py
 ESPMONITOR ?= $(ESPIDF)/tools/idf_monitor.py
 
 # verify the ESP IDF version
-ESPIDF_SUPHASH := aad70f2208934f819a047d5802fe00c5626d4b4f
+ESPIDF_SUPHASH := 4ad81ddb0af926295b5c23ca05b38386403ad70f
 ESPIDF_CURHASH := $(shell git -C $(ESPIDF) show -s --pretty=format:'%H')
 ifneq ($(ESPIDF_CURHASH),$(ESPIDF_SUPHASH))
 $(info ** WARNING **)
@@ -182,7 +182,6 @@ LIB_SRC_C = $(addprefix lib/,\
 	)
 
 LIBS_SRC_C = $(addprefix libs/,\
-	timeutils_epoch.c \
 	wildcard_sha2017_org.c \
 	modonewire.c \
 	)

@@ -2,27 +2,169 @@
 
 ---
 
-Before building extract Xtensa toolchain from archive, then build using *BUILD.sh* script:
+MicroPython works great on ESP32, but the most serious issue is still (as on most other MicroPython boards) limited amount of free memory.
+
+ESP32 can use external **SPI RAM (psRAM)** to expand available RAM up to 16MB. Currently, there is only one module which incorporates **4MB** of psRAM, the **ESP-WROVER module**...
+It is hard to get, but it is available on some **ESP-WROVER-KIT boards** (the one on which this build was tested on).
+
+[Pycom](https://www.pycom.io/webshop) is also offering the boards and OEM modules with 4MB of psRAM, to be available in August/September.
+
+---
+
+This repository contains all the tools and sources necessary to **build working MicroPython firmware** which can fully use the advantages of **4MB** (or more) of **psRAM**...
+It is **huge difference** between MicroPython running with **less than 100KB** of free memory and running with **4MB** of free memory.
+
+### Features
+
+* MicroPython build is added as **submodule** to [main Micropython repository](https://github.com/micropython/micropython)
+* ESP32 build is based on [MicroPython's ESP32 build](https://github.com/micropython/micropython-esp32/tree/esp32/esp32) with added changes needed to build on ESP32 with psRAM
+* Special [esp-idf branch](https://github.com/espressif/esp-idf/tree/feature/psram_malloc) is used, with some modifications needed to build MicroPython
+* Special Xtenssa ESP32 toolchain is needed for building psRAM enabled application. It is included in this repository.
+* Default configuration has **4MB** of MicroPython heap, **64KB** of MicroPython stack, **~200KB** of free DRAM heap for C modules and functions
+* MicroPython can be built in **unicore** (FreeRTOS & MicroPython task running only on the first ESP32 core, or **dualcore** configuration (MicroPython task running on ESP32 **App** core
+* ESP32 Flash can be configured in any mode, **QIO**, **QOUT**, **DIO**, **DOUT**
+* Special build directory is provided to create **sdkconfig.h** wid desired configuration
+* **BUILD.sh** script is provided to make **building** MicroPython firmware as **easy** as possible
+* Internal filesystem is built with esp-idf **wear leveling** driver, so there is less danger of damaging the flash with frequent writes
+* **sdcard** module is included which uses esp-idf **sdmmc** driver and can work in **1-bit** and **4-bit** modes. On ESP32-WROVER-KIT it works without changes, for imformation on how to connect sdcard on other boards look at *esp32/modesp.c*
+* **RTC Class** is added to machine module, including methods for synchronization of system time to **ntp** server, **deepsleep**, **wakeup** from deepsleep **on external pin** level, ...
+* files **timestamp** is correctly set to system time both on internal fat filesysten and on sdcard
+* Some additional frozen modules are added, like **pye** editor, **upip**, **urequests**, ...
+
+
+There are some new configuration options in **mpconfigport.h** you may want to change:
+```
+// internal flash file system configuration
+#define MICROPY_INTERNALFS_START            (0x180000)  // filesystem start Flash address
+#define MICROPY_INTERNALFS_SIZE             (0x200000)  // size of the Flash used for filesystem
+#define MICROPY_INTERNALFS_ENCRIPTED        (0)         // use encription on filesystem (UNTESTED!)
+
+// === sdcard using ESP32 sdmmc driver configuration ===
+#define MICROPY_SDMMC_SHOW_INFO             (1)         // show sdcard info after initialization if set to 1
+
+// Set the time zone string used on synchronization with NTP server
+// Comment if not used
+#define MICROPY_TIMEZONE "CET-1CEST"
+```
+
+There are few prepared **sdkconfig.h** configuration files you can use. You can copy any of them to sdkconfig.h...
+The default is dualcore, DIO.
+
+**sdkconfig.h.dio**  dual core, DIO Flash mode...
+**sdkconfig.h.qio**  dual core, QIO Flash mode...
+**sdkconfig.h.unicore**  one core, QIO Flash mode...
+**sdkconfig.h.nopsram**  does not use psRAM, can be used to build for **any** ESP32 module
+
+---
+
+### How to Build
+
+Clone this repository, as it uses submodules, use --recursive option
+
+```
+git clone --recursive https://github.com/loboris/MicroPython_ESP32_psRAM_LoBo.git
+```
+You have to extract Xtenssa toolchain from archive. Goto *MicroPython_ESP32_psRAM_LoBo* directory and execute:
+```
+tar -xf xtensa-esp32-elf_psram.tar.xz
+```
+Edit **BUILD.sh** script, and change if necessary, **PORT** and **BOUD** options. Leave all other options as is.
+
+You can also go to the **esp-idf_BUILD** build directory to create your own **sdkconfig.h**
+
+To build the MicroPython firmware, run:
+```
+./BUILD.sh
+```
+You can use -jN (N=number of cores to use) to make the build process faster (it only takes ~10 seconds on my system with -j8).
+
+If no errors are detected, you can now flash the MicroPython firmware to your board. Run:
+```
+./BUILD.sh deploy
+```
+The board stays in bootloader mode. Run yor terminal emulator and reset the board...
+You can also run *./BUILD.sh monitor* to use esp-idf's terminal program, it will reset the boars automatically.
+
+---
+
+To update the repository, run
+```
+git pull
+```
+
+You can also update the submodules, run
+```
+git submodule update --init --recursive
+```
+
+---
+
+### Some examples
+
+Using new machine methods and RTC:
+```
+import machine
+
+rtc = machine.RTC()
+
+rtc.init((2017, 6, 12, 14, 35, 20))
+
+rtc.now()
+
+rtc.ntp_sync(server="<ntp_server>" [,update_period=])
+  <ntp_server> can be empty string, then the default server is used ("pool.ntp.org")
+
+rtc.synced()
+  returns True if time synchronized to NTP server
+
+rtc.wake_on_ext0(Pin, level)
+rtc.wake_on_ext1(Pin, level)
+  wake up from deepsleep on pin level
+
+machine.deepsleep(time_ms)
+machine.wake_reason()
+  returns tuple with reset & wakeup reasons
+machine.wake_description()
+  returns tuple with strings describing reset & wakeup reasons
 
 
 ```
 
-tar -xf xtensa-esp32-elf_psram.tar.xz
+Using sdcard module:
+```
+import sdcard, uos, esp
 
-./BUILD.sh
+sd = sdcard.SDCard(esp.SD_1LINE)
+vfs = uos.VfsFat(sd)
+uos.mount(vfs, '/sd')
+uos.chdir('/sd')
+uos.listdir()
+```
 
-or
+Using sdcard module with automount:
+```
+>>> import sdcard,esp,uos
+>>> sd = sdcard.SDCard(esp.SD_4LINE, True)
+---------------------
+Initializing SD Card: OK.
+---------------------
+ Mode:  SD (4bit)
+ Name: SL08G
+ Type: SDHC/SDXC
+Speed: default speed (25 MHz)
+ Size: 7580 MB
+  CSD: ver=1, sector_size=512, capacity=15523840 read_bl_len=9
+  SCR: sd_spec=2, bus_width=5
 
-./BUILD.sh -j8
-
-then flash:
-
-./BUILD.sh deploy
-
+>>> uos.listdir()
+['overlays', 'bcm2708-rpi-0-w.dtb', ......
+>>>
 
 ```
 
 ---
+
+### Example terminal session
 
 
 ```

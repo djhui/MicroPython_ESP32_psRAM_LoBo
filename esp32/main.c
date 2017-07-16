@@ -168,15 +168,18 @@ void app_main(void) {
     }
 
     // Allocate heap memory
+    #if CONFIG_MEMMAP_SPIRAM_ENABLE
+
     #if !CONFIG_MEMMAP_SPIRAM_ENABLE_MALLOC
     printf("Allocating uPY heap:  size=%d bytes (in SPIRAM using pvPortMallocCaps)\n\n", MP_TASK_HEAP_SIZE);
     mp_task_heap = pvPortMallocCaps(MP_TASK_HEAP_SIZE, MALLOC_CAP_SPIRAM);
     #else
-    #if CONFIG_MEMMAP_SPIRAM_ENABLE
     printf("Allocating uPY heap:  size=%d bytes (in SPIRAM using malloc)\n\n", MP_TASK_HEAP_SIZE);
-    #else
-    printf("Allocating uPY heap:  size=%d bytes\n\n", MP_TASK_HEAP_SIZE);
+    mp_task_heap = malloc(MP_TASK_HEAP_SIZE);
     #endif
+
+    #else  // !CONFIG_MEMMAP_SPIRAM_ENABLE
+    printf("Allocating uPY heap:  size=%d bytes\n\n", MP_TASK_HEAP_SIZE);
     mp_task_heap = malloc(MP_TASK_HEAP_SIZE);
     #endif
     if (mp_task_heap == NULL) {
@@ -186,9 +189,9 @@ void app_main(void) {
 
     #if MICROPY_PY_THREAD
     #if CONFIG_FREERTOS_UNICORE
-    xTaskCreateStaticPinnedToCore(&mp_task, "mp_task", MP_TASK_STACK_LEN, NULL, MP_TASK_PRIORITY, mp_task_stack, &mp_task_tcb, 1);
-    #else
     xTaskCreateStaticPinnedToCore(&mp_task, "mp_task", MP_TASK_STACK_LEN, NULL, MP_TASK_PRIORITY, mp_task_stack, &mp_task_tcb, 0);
+    #else
+    xTaskCreateStaticPinnedToCore(&mp_task, "mp_task", MP_TASK_STACK_LEN, NULL, MP_TASK_PRIORITY, mp_task_stack, &mp_task_tcb, 1);
     #endif
     #else
     #if CONFIG_FREERTOS_UNICORE

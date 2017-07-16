@@ -151,13 +151,12 @@
 #define mp_type_textio                      fatfs_type_textio
 
 // internal flash file system configuration
-#define MICROPY_INTERNALFS_START            (0x180000)
-#define MICROPY_INTERNALFS_SIZE             (0x200000)
-#define MICROPY_INTERNALFS_ENCRIPTED        (0)
+#define MICROPY_INTERNALFS_START            (0x180000)  // filesystem start Flash address
+#define MICROPY_INTERNALFS_SIZE             (0x200000)  // size of the Flash used for filesystem
+#define MICROPY_INTERNALFS_ENCRIPTED        (0)         // use encription on filesystem (UNTESTED!)
 
-// sdcard using ESP32 sdmmc driver configuration
-#define MICROPY_SDMMC_USE_DRIVER            (1)
-#define MICROPY_SDMMC_SHOW_INFO             (1)
+// === sdcard using ESP32 sdmmc driver configuration ===
+#define MICROPY_SDMMC_SHOW_INFO             (1)         // show sdcard info after initialization if set to 1
 
 // use vfs's functions for import stat and builtin open
 #define mp_import_stat mp_vfs_import_stat
@@ -254,3 +253,6 @@ typedef long mp_off_t;
 #define MICROPY_HW_BOARD_NAME "ESP-WROVER module"
 #define MICROPY_HW_MCU_NAME "ESP32+psRAM"
 #define MICROPY_PY_SYS_PLATFORM "esp32"
+// Set the time zone string used on synchronization with NTP server
+// Comment if not used
+#define MICROPY_TIMEZONE "CET-1CEST"

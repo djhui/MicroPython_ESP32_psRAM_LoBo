@@ -26,18 +26,16 @@
  * THE SOFTWARE.
  */
 
+#include <time.h>
 #include "py/obj.h"
 #include "lib/oofatfs/ff.h"
-#include "timeutils_epoch.h"
-#include "machrtc.h"
 
 DWORD get_fattime(void) {
-
-    uint32_t secs = (uint32_t)(mach_rtc_get_us_since_epoch() / 1000000);
-
-    timeutils_struct_time_t tm;
-    timeutils_seconds_since_epoch_to_struct_time(secs, &tm);
-
-    return (((DWORD)(tm.tm_year - 1980) << 25) | ((DWORD)tm.tm_mon << 21) | ((DWORD)tm.tm_mday << 16) |
-           ((DWORD)tm.tm_hour << 11) | ((DWORD)tm.tm_min << 5) | ((DWORD)tm.tm_sec >> 1));
+    time_t now;
+    time(&now);
+    struct tm *tm_info;
+    tm_info = gmtime(&now);
+    
+    return (((DWORD)(tm_info->tm_year - 80) << 25) | (((DWORD)tm_info->tm_mon +1) << 21) | ((DWORD)tm_info->tm_mday << 16) |
+           ((DWORD)tm_info->tm_hour << 11) | ((DWORD)tm_info->tm_min << 5) | ((DWORD)tm_info->tm_sec >> 1));
 }
