@@ -90,7 +90,7 @@ If no errors are detected, you can now flash the MicroPython firmware to your bo
 ```
 The board stays in bootloader mode. Run your terminal emulator and reset the board.
 
-You can also run *./BUILD.sh monitor* to use esp-idf's terminal program, it will reset the boars automatically.
+You can also run *./BUILD.sh monitor* to use esp-idf's terminal program, it will reset the board automatically.
 
 *After changing* **sdkconfig.h** *always run* **./BUILD clean** *before new build*
 
