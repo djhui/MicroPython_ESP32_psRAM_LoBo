@@ -21,14 +21,14 @@ It is **huge difference** between MicroPython running with **less than 100KB** o
 * MicroPython build is added as **submodule** to [main Micropython repository](https://github.com/micropython/micropython)
 * ESP32 build is based on [MicroPython's ESP32 build](https://github.com/micropython/micropython-esp32/tree/esp32/esp32) with added changes needed to build on ESP32 with psRAM
 * Special [esp-idf branch](https://github.com/espressif/esp-idf/tree/feature/psram_malloc) is used, with some modifications needed to build MicroPython
-* Special Xtenssa ESP32 toolchain is needed for building psRAM enabled application. It is included in this repository.
+* Special Xtensa ESP32 toolchain is needed for building psRAM enabled application. It is included in this repository.
 * Default configuration has **4MB** of MicroPython heap, **64KB** of MicroPython stack, **~200KB** of free DRAM heap for C modules and functions
 * MicroPython can be built in **unicore** (FreeRTOS & MicroPython task running only on the first ESP32 core, or **dualcore** configuration (MicroPython task running on ESP32 **App** core
 * ESP32 Flash can be configured in any mode, **QIO**, **QOUT**, **DIO**, **DOUT**
 * Special build directory is provided to create **sdkconfig.h** wid desired configuration
 * **BUILD.sh** script is provided to make **building** MicroPython firmware as **easy** as possible
 * Internal filesystem is built with esp-idf **wear leveling** driver, so there is less danger of damaging the flash with frequent writes
-* **sdcard** module is included which uses esp-idf **sdmmc** driver and can work in **1-bit** and **4-bit** modes. On ESP32-WROVER-KIT it works without changes, for imformation on how to connect sdcard on other boards look at *esp32/modesp.c*
+* **sdcard** module is included which uses esp-idf **sdmmc** driver and can work in **1-bit** and **4-bit** modes. On ESP-WROVER-KIT it works without changes, for imformation on how to connect sdcard on other boards look at *esp32/modesp.c*
 * **RTC Class** is added to machine module, including methods for synchronization of system time to **ntp** server, **deepsleep**, **wakeup** from deepsleep **on external pin** level, ...
 * files **timestamp** is correctly set to system time both on internal fat filesysten and on sdcard
 * Some additional frozen modules are added, like **pye** editor, **upip**, **urequests**, ...
@@ -67,7 +67,7 @@ Clone this repository, as it uses submodules, use --recursive option
 ```
 git clone --recursive https://github.com/loboris/MicroPython_ESP32_psRAM_LoBo.git
 ```
-You have to extract Xtenssa toolchain from archive. Goto *MicroPython_ESP32_psRAM_LoBo* directory and execute:
+You have to extract Xtensa toolchain from archive. Goto *MicroPython_ESP32_psRAM_LoBo* directory and execute:
 ```
 tar -xf xtensa-esp32-elf_psram.tar.xz
 ```
@@ -165,6 +165,11 @@ Speed: default speed (25 MHz)
 >>>
 
 ```
+
+---
+
+Tested on **ESP-WROVER-KIT v3**
+![Tested on](https://raw.githubusercontent.com/loboris/MicroPython_ESP32_psRAM_LoBo/master/Documents/ESP-WROVER-KIT_v3_small.jpg)
 
 ---
 
