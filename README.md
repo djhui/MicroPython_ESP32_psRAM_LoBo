@@ -4,14 +4,16 @@
 
 MicroPython works great on ESP32, but the most serious issue is still (as on most other MicroPython boards) limited amount of free memory.
 
-ESP32 can use external **SPI RAM (psRAM)** to expand available RAM up to 16MB. Currently, there is only one module which incorporates **4MB** of psRAM, the **ESP-WROVER module**...
+ESP32 can use external **SPI RAM (psRAM)** to expand available RAM up to 16MB. Currently, there is only one module which incorporates **4MB** of psRAM, the **ESP-WROVER module**
+
 It is hard to get, but it is available on some **ESP-WROVER-KIT boards** (the one on which this build was tested on).
 
 [Pycom](https://www.pycom.io/webshop) is also offering the boards and OEM modules with 4MB of psRAM, to be available in August/September.
 
 ---
 
-This repository contains all the tools and sources necessary to **build working MicroPython firmware** which can fully use the advantages of **4MB** (or more) of **psRAM**...
+This repository contains all the tools and sources necessary to **build working MicroPython firmware** which can fully use the advantages of **4MB** (or more) of **psRAM**
+
 It is **huge difference** between MicroPython running with **less than 100KB** of free memory and running with **4MB** of free memory.
 
 ### Features
@@ -47,13 +49,14 @@ There are some new configuration options in **mpconfigport.h** you may want to c
 #define MICROPY_TIMEZONE "CET-1CEST"
 ```
 
-There are few prepared **sdkconfig.h** configuration files you can use. You can copy any of them to sdkconfig.h...
+There are few prepared **sdkconfig.h** configuration files you can use. You can copy any of them to sdkconfig.h
+
 The default is dualcore, DIO.
 
-**sdkconfig.h.dio**  dual core, DIO Flash mode...
-**sdkconfig.h.qio**  dual core, QIO Flash mode...
-**sdkconfig.h.unicore**  one core, QIO Flash mode...
-**sdkconfig.h.nopsram**  does not use psRAM, can be used to build for **any** ESP32 module
+* **sdkconfig.h.dio**  dual core, DIO Flash mode
+* **sdkconfig.h.qio**  dual core, QIO Flash mode
+* **sdkconfig.h.unicore**  one core, QIO Flash mode
+* **sdkconfig.h.nopsram**  does not use psRAM, can be used to build for **any** ESP32 module
 
 ---
 
@@ -82,7 +85,8 @@ If no errors are detected, you can now flash the MicroPython firmware to your bo
 ```
 ./BUILD.sh deploy
 ```
-The board stays in bootloader mode. Run yor terminal emulator and reset the board...
+The board stays in bootloader mode. Run your terminal emulator and reset the board.
+
 You can also run *./BUILD.sh monitor* to use esp-idf's terminal program, it will reset the boars automatically.
 
 ---
