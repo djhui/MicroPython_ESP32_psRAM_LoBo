@@ -21,16 +21,16 @@ It is **huge difference** between MicroPython running with **less than 100KB** o
 * MicroPython build is added as **submodule** to [main Micropython repository](https://github.com/micropython/micropython)
 * ESP32 build is based on [MicroPython's ESP32 build](https://github.com/micropython/micropython-esp32/tree/esp32/esp32) with added changes needed to build on ESP32 with psRAM
 * Special [esp-idf branch](https://github.com/espressif/esp-idf/tree/feature/psram_malloc) is used, with some modifications needed to build MicroPython
-* Special Xtensa ESP32 toolchain is needed for building psRAM enabled application. It is included in this repository.
+* Special build of **Xtensa ESP32 toolchain** is needed for building psRAM enabled application. It is included in this repository.
 * Default configuration has **4MB** of MicroPython heap, **64KB** of MicroPython stack, **~200KB** of free DRAM heap for C modules and functions
-* MicroPython can be built in **unicore** (FreeRTOS & MicroPython task running only on the first ESP32 core, or **dualcore** configuration (MicroPython task running on ESP32 **App** core
+* MicroPython can be built in **unicore** (FreeRTOS & MicroPython task running only on the first ESP32 core, or **dualcore** configuration (MicroPython task running on ESP32 **App** core)
 * ESP32 Flash can be configured in any mode, **QIO**, **QOUT**, **DIO**, **DOUT**
-* Special build directory is provided to create **sdkconfig.h** wid desired configuration
+* Special build directory is provided to create **sdkconfig.h** with desired configuration
 * **BUILD.sh** script is provided to make **building** MicroPython firmware as **easy** as possible
 * Internal filesystem is built with esp-idf **wear leveling** driver, so there is less danger of damaging the flash with frequent writes
 * **sdcard** module is included which uses esp-idf **sdmmc** driver and can work in **1-bit** and **4-bit** modes. On ESP-WROVER-KIT it works without changes, for imformation on how to connect sdcard on other boards look at *esp32/modesp.c*
 * **RTC Class** is added to machine module, including methods for synchronization of system time to **ntp** server, **deepsleep**, **wakeup** from deepsleep **on external pin** level, ...
-* files **timestamp** is correctly set to system time both on internal fat filesysten and on sdcard
+* Files **timestamp** is correctly set to system time both on internal fat filesysten and on sdcard
 * Some additional frozen modules are added, like **pye** editor, **upip**, **urequests**, ...
 
 
@@ -79,7 +79,7 @@ To build the MicroPython firmware, run:
 ```
 ./BUILD.sh
 ```
-You can use -jN (N=number of cores to use) to make the build process faster (it only takes ~10 seconds on my system with -j8).
+You can use -jn option (n=number of cores to use) to make the build process faster (it only takes ~10 seconds -j8).
 
 If no errors are detected, you can now flash the MicroPython firmware to your board. Run:
 ```
@@ -87,7 +87,9 @@ If no errors are detected, you can now flash the MicroPython firmware to your bo
 ```
 The board stays in bootloader mode. Run your terminal emulator and reset the board.
 
-You can also run *./BUILD.sh monitor* to use esp-idf's terminal program, it will reset the boars automatically.
+You can also run *./BUILD.sh monitor* to use esp-idf's terminal program, it will reset the boars automatically. Look at *README.md* there for more information.
+
+*After changing* **sdkconfig.h** *always run* **./BUILD clean** *before new build*
 
 ---
 
@@ -96,7 +98,7 @@ To update the repository, run
 git pull
 ```
 
-You can also update the submodules, run
+You can also update only the submodules, run
 ```
 git submodule update --init --recursive
 ```
@@ -106,7 +108,7 @@ git submodule update --init --recursive
 ### Known issues
 
 * Configuring Flash speed for **80MHz** does not work
-* In **dual core** mode, the reset reason after deepsleep is not correctly detected
+* In **dual core** mode, the reset reason after deepsleep is not correctly detected. In **unicore** mode reset reason is detected correctly.
 
 ---
 
