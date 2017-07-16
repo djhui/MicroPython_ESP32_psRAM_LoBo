@@ -103,6 +103,13 @@ git submodule update --init --recursive
 
 ---
 
+### Known issues
+
+* Configuring Flash speed for **80MHz** does not work
+* In **dual core** mode, the reset reason after deepsleep is not correctly detected
+
+---
+
 ### Some examples
 
 Using new machine methods and RTC:
