@@ -6,7 +6,7 @@
 
 **This repository can be used to build MicroPython for modules with psRAM as well as for regular ESP32 modules without psRAM.**
 
-For building with **psRAM** support, special wersions of *esp-idf* and *Xtensa toolchain* are needed (included). Otherwize, standart *esp-idf* and toolchain can be used.
+For building with **psRAM** support, special wersions of *esp-idf* and *Xtensa toolchain* are needed (included). Otherwise, standart *esp-idf* and toolchain can be used.
 
 ---
 
@@ -89,13 +89,13 @@ You can use -jn option (n=number of cores to use) to make the build process fast
 
 If no errors are detected, you can now flash the MicroPython firmware to your board. Run:
 ```
-./BUILD.sh deploy
+./BUILD.sh flash
 ```
 The board stays in bootloader mode. Run your terminal emulator and reset the board.
 
 You can also run *./BUILD.sh monitor* to use esp-idf's terminal program, it will reset the board automatically.
 
-*After changing* **sdkconfig.h** *always run* **./BUILD clean** *before new build*
+*After changing* **sdkconfig.h** (via menuconfig) *always run* **./BUILD.sh clean** *before new build*
 
 ---
 
@@ -106,13 +106,13 @@ Included *BUILD.sh* script makes **building** MicroPython firmware **easy**.
 
 Usage:
 
-* **./BUILD**               - run the build, create MicroPython firmware
-* **./BUILD -jn**           - run the build on multicore system, much faster build replace n with the number of cores on your system
-* **./BUILD menuconfig**    - run menuconfig to configure ESP32/MicroPython
-* **./BUILD clean**         - clean the build
-* **./BUILD flash**         - flash MicroPython firmware to ESP32
-* **./BUILD erase**         - erase the whole ESP32 Flash
-* **./BUILD monitor**       - run esp-idf terminal program
+* **./BUILD.sh**               - run the build, create MicroPython firmware
+* **./BUILD.sh -jn**           - run the build on multicore system, much faster build. Replace **n** with the number of cores on your system
+* **./BUILD.sh menuconfig**    - run menuconfig to configure ESP32/MicroPython
+* **./BUILD.sh clean**         - clean the build
+* **./BUILD.sh flash**         - flash MicroPython firmware to ESP32
+* **./BUILD.sh erase**         - erase the whole ESP32 Flash
+* **./BUILD.sh monitor**       - run esp-idf terminal program
 
 As default the build process runs silently, without showing compiler output. You can change that by commenting **> /dev/null 2>&1** in the lines with **make** command.
 
