@@ -1,0 +1,57 @@
+menu "MicroPython"
+    config MICROPY_HW_BOARD_NAME
+        string "Board name"
+        default "ESP32 board"
+        help
+        Hardware board mame
+
+    config MICROPY_HW_MCU_NAME
+        string "MCU name"
+        default "ESP32"
+        help
+        Hardware MCU mame
+
+    config MICROPY_PY_FRAMEBUF
+        bool "Enable framebuffer"
+        default y
+        help
+        Enable framebuffer support
+
+    config MICROPY_TIMEZONE
+        string "Time zone"
+        default "GMT0BST"
+        help
+        Set the time zone string used when updating the tome from NTP server
+        You can use 'zones.csv' file to find the time zone string
+        Use the second entry for your Region/city
+
+    menu "Fat Filesystems"
+        config MICROPY_INTERNALFS_START
+            hex "Flash start address"
+            range 0x180000 0x1FF8000
+            default 0x180000
+            help
+            Starting address of the FatFS area in ESP32 Flash
+
+        config MICROPY_INTERNALFS_SIZE
+            int "Filesystem size"
+            range 512 14336
+            default 1024
+            help
+            File siste size in KB (Kbytes), minimum is 1s 512K
+            Set the size in 4KB increments
+
+        config MICROPY_INTERNALFS_ENCRIPTED
+            bool "Use encripted filesystem"
+            default n
+            help
+            Use encription on internal file system
+            Warning: this function is still UNTESTED
+
+        config MICROPY_SDMMC_SHOW_INFO
+            bool "Show SDCard info"
+            default n
+            help
+            Show sdcard info after initializing the card
+    endmenu
+endmenu

@@ -1,4 +1,12 @@
-# MicroPython for ESP32-WROVER with 4MB of psRAM
+# MicroPython for ESP32
+
+# with support for 4MB of psRAM
+
+---
+
+**This repository can be used to build MicroPython for modules with psRAM as well as for regular ESP32 modules without psRAM.**
+
+For building with **psRAM** support, special wersions of *esp-idf* and *Xtensa toolchain* are needed (included). Otherwize, standart *esp-idf* and toolchain can be used.
 
 ---
 
@@ -8,7 +16,7 @@ ESP32 can use external **SPI RAM (psRAM)** to expand available RAM up to 16MB. C
 
 It is hard to get, but it is available on some **ESP-WROVER-KIT boards** (the one on which this build was tested on).
 
-[Pycom](https://www.pycom.io/webshop) is also offering the boards and OEM modules with 4MB of psRAM, to be available in August/September.
+[Pycom](https://www.pycom.io/webshop) is also offering the boards and OEM modules with 4MB of psRAM, to be available in August/September (some OEM modules already available).
 
 ---
 
@@ -16,56 +24,42 @@ This repository contains all the tools and sources necessary to **build working 
 
 It is **huge difference** between MicroPython running with **less than 100KB** of free memory and running with **4MB** of free memory.
 
+---
+
+## **The MicroPython firmware is built as esp-idf component**
+
+This means the regular esp-idf **menuconfig** system can be used for configuration. Besides the ESP32 configuration itself, some MicroPython options can also be configured via **menuconfig**.
+
+This way many features not available in standard ESP32 MicroPython are enabled, like unicore/dualcore, all Flash speed/mode options etc. No manual *sdkconfig.h* editing and tweaking is necessary.
+
+---
+
 ### Features
 
-* MicroPython build is added as **submodule** to [main Micropython repository](https://github.com/micropython/micropython)
+* MicroPython build is based on latest build (1.9.1) from [main Micropython repository](https://github.com/micropython/micropython)
 * ESP32 build is based on [MicroPython's ESP32 build](https://github.com/micropython/micropython-esp32/tree/esp32/esp32) with added changes needed to build on ESP32 with psRAM
 * Special [esp-idf branch](https://github.com/espressif/esp-idf/tree/feature/psram_malloc) is used, with some modifications needed to build MicroPython
 * Special build of **Xtensa ESP32 toolchain** is needed for building psRAM enabled application. It is included in this repository.
 * Default configuration has **4MB** of MicroPython heap, **64KB** of MicroPython stack, **~200KB** of free DRAM heap for C modules and functions
 * MicroPython can be built in **unicore** (FreeRTOS & MicroPython task running only on the first ESP32 core, or **dualcore** configuration (MicroPython task running on ESP32 **App** core)
 * ESP32 Flash can be configured in any mode, **QIO**, **QOUT**, **DIO**, **DOUT**
-* Special build directory is provided to create **sdkconfig.h** with desired configuration
 * **BUILD.sh** script is provided to make **building** MicroPython firmware as **easy** as possible
-* Internal filesystem is built with esp-idf **wear leveling** driver, so there is less danger of damaging the flash with frequent writes
-* **sdcard** module is included which uses esp-idf **sdmmc** driver and can work in **1-bit** and **4-bit** modes. On ESP-WROVER-KIT it works without changes, for imformation on how to connect sdcard on other boards look at *esp32/modesp.c*
+* Internal filesystem is built with esp-idf **wear leveling** driver, so there is less danger of damaging the flash with frequent writes. File system parameters (start address, size, ...) can be set via **menuconfig**.
+* **sdcard** module is included which uses esp-idf **sdmmc** driver and can work in **1-bit** and **4-bit** modes. On ESP-WROVER-KIT it works without changes, for imformation on how to connect sdcard on other boards look at *components/micropython/esp32/modesp.c*
 * **RTC Class** is added to machine module, including methods for synchronization of system time to **ntp** server, **deepsleep**, **wakeup** from deepsleep **on external pin** level, ...
+* **Time zone** can be configured via **menuconfig** and is used when syncronizing time from NTP server
 * Files **timestamp** is correctly set to system time both on internal fat filesysten and on sdcard
-* Some additional frozen modules are added, like **pye** editor, **upip**, **urequests**, ...
+* Some additional frozen modules are added, like **pye** editor, **urequests**, ...
+* **Eclipse** project files included. To include it into Eclipse goto File->Import->Existing Projects into Workspace->Select root directory->[select *MicroPython_BUILD* directory]->Finish. Rebuild index.
 
 ---
 
-There are some new configuration options in **mpconfigport.h** you may want to change:
-```
-// internal flash file system configuration
-#define MICROPY_INTERNALFS_START            (0x180000)  // filesystem start Flash address
-#define MICROPY_INTERNALFS_SIZE             (0x200000)  // size of the Flash used for filesystem
-#define MICROPY_INTERNALFS_ENCRIPTED        (0)         // use encription on filesystem (UNTESTED!)
-
-// === sdcard using ESP32 sdmmc driver configuration ===
-#define MICROPY_SDMMC_SHOW_INFO             (1)         // show sdcard info after initialization if set to 1
-
-// Set the time zone string used on synchronization with NTP server
-// Comment if not used
-#define MICROPY_TIMEZONE "CET-1CEST"
-```
-
-There are couple of prepared **sdkconfig.h** configuration files you can use. You can copy any of them to sdkconfig.h
-
-The default is dualcore, DIO.
-
-* **sdkconfig.h.dio**  dual core, DIO Flash mode
-* **sdkconfig.h.qio**  dual core, QIO Flash mode
-* **sdkconfig.h.unicore**  one core, QIO Flash mode
-* **sdkconfig.h.nopsram**  does not use psRAM, can be used to build for **any** ESP32 module
-
-You can also go to the **esp-idf_BUILD** build directory to create your own **sdkconfig.h**. Look at *README.md* there for more information.
-
----
 
 ### How to Build
 
-Clone this repository, as it uses submodules, use --recursive option
+---
+
+Clone this repository, as it uses some submodules, use --recursive option
 
 ```
 git clone --recursive https://github.com/loboris/MicroPython_ESP32_psRAM_LoBo.git
@@ -74,15 +68,24 @@ You have to extract Xtensa toolchain from archive. Goto *MicroPython_ESP32_psRAM
 ```
 tar -xf xtensa-esp32-elf_psram.tar.xz
 ```
-Edit **BUILD.sh** script, and change if necessary, **PORT** and **BOUD** options. Leave all other options as is.
 
-You can also go to the **esp-idf_BUILD** build directory to create your own **sdkconfig.h**. Look at *README.md* there for more information.
+**Goto MicroPython_BUILD directory**
+
+
+Edit **BUILD.sh** script, and change **esp-idf** and **Xtensa toolchain** **PATHS**. For building with psRAM support, the paths are already set correctly.
+
+---
+
+To change some ESP32 & Micropython options run:
+```
+./BUILD.sh menuconfig
+```
 
 To build the MicroPython firmware, run:
 ```
 ./BUILD.sh
 ```
-You can use -jn option (n=number of cores to use) to make the build process faster (it only takes ~10 seconds -j8).
+You can use -jn option (n=number of cores to use) to make the build process faster (it only takes les than 15 seconds with -j4). If using too high **n** the build may fail, if that happens, run build again or run without the -j option.
 
 If no errors are detected, you can now flash the MicroPython firmware to your board. Run:
 ```
@@ -96,24 +99,36 @@ You can also run *./BUILD.sh monitor* to use esp-idf's terminal program, it will
 
 ---
 
-To update the repository, run
-```
-git pull
-```
 
-You can also update only the submodules, run
-```
-git submodule update --init --recursive
-```
+### BUILD.sh
+
+Included *BUILD.sh* script makes **building** MicroPython firmware **easy**.
+
+Usage:
+
+* **./BUILD**               - run the build, create MicroPython firmware
+* **./BUILD -jn**           - run the build on multicore system, much faster build replace n with the number of cores on your system
+* **./BUILD menuconfig**    - run menuconfig to configure ESP32/MicroPython
+* **./BUILD clean**         - clean the build
+* **./BUILD flash**         - flash MicroPython firmware to ESP32
+* **./BUILD erase**         - erase the whole ESP32 Flash
+* **./BUILD monitor**       - run esp-idf terminal program
+
+As default the build process runs silently, without showing compiler output. You can change that by commenting **> /dev/null 2>&1** in the lines with **make** command.
+
+**To build with psRAM support add** *psram* **as the last parameter.**
+
+After the successful build the firmware files will be placed into **firmware** directory. **flash.sh** script will also be created.
 
 ---
+
 
 ### Known issues
 
-* Configuring Flash speed for **80MHz** does not work
-* In **dual core** mode, the reset reason after deepsleep is not correctly detected. In **unicore** mode reset reason is detected correctly.
+* In **dual core** mode, the reset reason after deepsleep may be incorrectly detected. In **unicore** mode reset reason is detected correctly.
 
 ---
+
 
 ### Some examples
 
