@@ -202,6 +202,7 @@ if [ $? -eq 0 ]; then
             cp -f build/MicroPython.bin firmware/esp32_psram > /dev/null 2>&1
             cp -f build/bootloader/bootloader.bin firmware/esp32_psram/bootloader > /dev/null 2>&1
             cp -f build/partitions_singleapp.bin firmware/esp32_psram > /dev/null 2>&1
+            cp -f sdkconfig firmware/esp32_psram > /dev/null 2>&1
             echo "#!/bin/bash" > firmware/esp32_psram/flash.sh
             make print_flash_cmd >> firmware/esp32_psram/flash.sh
             chmod +x firmware/esp32_psram/flash.sh > /dev/null 2>&1
@@ -209,6 +210,7 @@ if [ $? -eq 0 ]; then
             cp -f build/MicroPython.bin firmware/esp32 > /dev/null 2>&1
             cp -f build/bootloader/bootloader.bin firmware/esp32/bootloader > /dev/null 2>&1
             cp -f build/partitions_singleapp.bin firmware/esp32 > /dev/null 2>&1
+            cp -f sdkconfig firmware/esp32 > /dev/null 2>&1
             echo "#!/bin/bash" > firmware/esp32/flash.sh
             make print_flash_cmd >> firmware/esp32/flash.sh
             chmod +x firmware/esp32/flash.sh > /dev/null 2>&1
