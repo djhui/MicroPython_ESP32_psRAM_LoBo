@@ -38,18 +38,23 @@
 #include "py/mphal.h"
 #include "extmod/misc.h"
 #include "lib/utils/pyexec.h"
+#include "uart.h"
+#include "sdkconfig.h"
 
-STATIC uint8_t stdin_ringbuf_array[256];
+STATIC uint8_t stdin_ringbuf_array[CONFIG_MICROPY_RX_BUFFER_SIZE];
 ringbuf_t stdin_ringbuf = {stdin_ringbuf_array, sizeof(stdin_ringbuf_array)};
+
 
 int mp_hal_stdin_rx_chr(void) {
     for (;;) {
+		xSemaphoreTake(uart0_mutex, UART_SEMAPHORE_WAIT);
         int c = ringbuf_get(&stdin_ringbuf);
+		xSemaphoreGive(uart0_mutex);
         if (c != -1) {
             return c;
         }
         MICROPY_EVENT_POLL_HOOK
-        vTaskDelay(1);
+		vTaskDelay(10 / portTICK_PERIOD_MS); // wait 10 ms
     }
 }
 

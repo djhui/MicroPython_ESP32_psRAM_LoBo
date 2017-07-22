@@ -46,6 +46,8 @@
 #include "esp_deep_sleep.h"
 #include "mpsleep.h"
 #include "machrtc.h"
+#include "uart.h"
+#include "rom/uart.h"
 
 #if MICROPY_PY_MACHINE
 
@@ -187,6 +189,75 @@ STATIC mp_obj_t machine_wake_desc (void) {
 STATIC MP_DEFINE_CONST_FUN_OBJ_0(machine_wake_desc_obj, machine_wake_desc);
 
 
+//-----------------------------------------
+STATIC mp_obj_t machine_stdin_take (void) {
+	xSemaphoreTake(uart0_mutex, UART_SEMAPHORE_WAIT);
+	uart0_raw_input = 1;
+
+    return mp_const_none;
+}
+STATIC MP_DEFINE_CONST_FUN_OBJ_0(machine_stdin_take_obj, machine_stdin_take);
+
+//-----------------------------------------
+STATIC mp_obj_t machine_stdin_give (void) {
+	uart0_raw_input = 0;
+	xSemaphoreGive(uart0_mutex);
+
+    return mp_const_none;
+}
+STATIC MP_DEFINE_CONST_FUN_OBJ_0(machine_stdin_give_obj, machine_stdin_give);
+
+//-----------------------------------------------------------------------
+STATIC mp_obj_t machine_stdin_get (mp_obj_t sz_in, mp_obj_t timeout_in) {
+    mp_int_t timeout = mp_obj_get_int(timeout_in);
+    mp_int_t sz = mp_obj_get_int(sz_in);
+    if (sz == 0) {
+        return mp_const_none;
+    }
+    int tmo = 0;
+    int c = -1;
+    vstr_t vstr;
+    mp_int_t recv = 0;
+
+    vstr_init_len(&vstr, sz);
+
+    while (tmo < timeout) {
+    	c = ringbuf_get(&stdin_ringbuf);
+        if (c != -1) {
+        	//vstr_add_byte(&vstr, (byte)c);
+        	vstr.buf[recv] = (byte)c;
+            recv++;
+            if (recv >= sz) break;
+        }
+		vTaskDelay(10 / portTICK_PERIOD_MS); // wait 10 ms
+    	tmo += 10;
+    }
+    if (tmo >= timeout) {
+        return mp_const_none;
+    }
+    return mp_obj_new_str_from_vstr(&mp_type_str, &vstr);;
+}
+STATIC MP_DEFINE_CONST_FUN_OBJ_2(machine_stdin_get_obj, machine_stdin_get);
+
+//----------------------------------------------------
+STATIC mp_obj_t machine_stdout_put (mp_obj_t buf_in) {
+    mp_buffer_info_t bufinfo;
+    mp_get_buffer_raise(buf_in, &bufinfo, MP_BUFFER_READ);
+    mp_int_t len = bufinfo.len;
+    char *buf = bufinfo.buf;
+
+    while (len--) {
+        //mp_hal_stdout_tx_char(*buf++);
+        uart_tx_one_char(*buf++);
+    }
+
+    return mp_obj_new_int_from_uint(bufinfo.len);
+}
+STATIC MP_DEFINE_CONST_FUN_OBJ_1(machine_stdout_put_obj, machine_stdout_put);
+
+
+// machine.stdin_take(); res = machine.stdin_get(3,10000); machine.stdin_give()
+//---------------------------------------------------------------
 STATIC const mp_rom_map_elem_t machine_module_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR___name__), MP_ROM_QSTR(MP_QSTR_umachine) },
 
@@ -202,6 +273,11 @@ STATIC const mp_rom_map_elem_t machine_module_globals_table[] = {
     { MP_OBJ_NEW_QSTR(MP_QSTR_wake_reason), MP_ROM_PTR(&machine_wake_reason_obj) },
     { MP_OBJ_NEW_QSTR(MP_QSTR_wake_description), MP_ROM_PTR(&machine_wake_desc_obj) },
     { MP_ROM_QSTR(MP_QSTR_free_heap), MP_ROM_PTR(&machine_free_heap_obj) },
+
+    { MP_ROM_QSTR(MP_QSTR_stdin_take), MP_ROM_PTR(&machine_stdin_take_obj) },
+    { MP_ROM_QSTR(MP_QSTR_stdin_give), MP_ROM_PTR(&machine_stdin_give_obj) },
+	{ MP_ROM_QSTR(MP_QSTR_stdin_get), MP_ROM_PTR(&machine_stdin_get_obj) },
+	{ MP_ROM_QSTR(MP_QSTR_stdout_put), MP_ROM_PTR(&machine_stdout_put_obj) },
 
     { MP_ROM_QSTR(MP_QSTR_disable_irq), MP_ROM_PTR(&machine_disable_irq_obj) },
     { MP_ROM_QSTR(MP_QSTR_enable_irq), MP_ROM_PTR(&machine_enable_irq_obj) },

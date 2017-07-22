@@ -44,8 +44,8 @@ static char sccsid[] = "@(#)bt_overflow.c	8.5 (Berkeley) 7/16/94";
 #include <stdlib.h>
 #include <string.h>
 
-#include <db.h>
-#include "btree.h"
+#include "lib/berkeley-db-1.xx/include/db.h"
+#include "lib/berkeley-db-1.xx/btree/btree.h"
 
 /*
  * Big key/data code.

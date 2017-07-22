@@ -44,8 +44,8 @@ static char sccsid[] = "@(#)bt_delete.c	8.13 (Berkeley) 7/28/94";
 #include <stdio.h>
 #include <string.h>
 
-#include <db.h>
-#include "btree.h"
+#include "lib/berkeley-db-1.xx/include/db.h"
+#include "lib/berkeley-db-1.xx/btree/btree.h"
 
 static int __bt_bdelete __P((BTREE *, const DBT *));
 static int __bt_curdel __P((BTREE *, const DBT *, PAGE *, u_int));

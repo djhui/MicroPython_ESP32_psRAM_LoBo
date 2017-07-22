@@ -35,8 +35,14 @@
 
 STATIC void uart_irq_handler(void *arg);
 
+QueueHandle_t uart0_mutex = NULL;
+int uart0_raw_input = 0;
+
+
 void uart_init(void) {
-    uart_isr_handle_t handle;
+	uart0_mutex = xSemaphoreCreateMutex();
+
+	uart_isr_handle_t handle;
     uart_isr_register(UART_NUM_0, uart_irq_handler, NULL, ESP_INTR_FLAG_LOWMED | ESP_INTR_FLAG_IRAM, &handle);
     uart_enable_rx_intr(UART_NUM_0);
 }
@@ -49,17 +55,17 @@ STATIC void IRAM_ATTR uart_irq_handler(void *arg) {
     uart->int_clr.rxfifo_tout = 1;
     while (uart->status.rxfifo_cnt) {
         uint8_t c = uart->fifo.rw_byte;
-        if (c == mp_interrupt_char) {
-            // inline version of mp_keyboard_interrupt();
-            MP_STATE_VM(mp_pending_exception) = MP_OBJ_FROM_PTR(&MP_STATE_VM(mp_kbd_exception));
-            #if MICROPY_ENABLE_SCHEDULER
-            if (MP_STATE_VM(sched_state) == MP_SCHED_IDLE) {
-                MP_STATE_VM(sched_state) = MP_SCHED_PENDING;
-            }
-            #endif
-        } else {
-            // this is an inline function so will be in IRAM
-            ringbuf_put(&stdin_ringbuf, c);
-        }
+		if ((uart0_raw_input == 0) && (c == mp_interrupt_char)) {
+			// inline version of mp_keyboard_interrupt();
+			MP_STATE_VM(mp_pending_exception) = MP_OBJ_FROM_PTR(&MP_STATE_VM(mp_kbd_exception));
+			#if MICROPY_ENABLE_SCHEDULER
+			if (MP_STATE_VM(sched_state) == MP_SCHED_IDLE) {
+				MP_STATE_VM(sched_state) = MP_SCHED_PENDING;
+			}
+			#endif
+		} else {
+			// this is an inline function so will be in IRAM
+			ringbuf_put(&stdin_ringbuf, c);
+		}
     }
 }

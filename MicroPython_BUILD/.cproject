@@ -36,6 +36,7 @@
 									<listOptionValue builtIn="false" value="&quot;${IDF_PATH}/components/sdmmc/include&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${IDF_PATH}/components/fatfs/src&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${IDF_PATH}/components/spi_flash/include&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${IDF_PATH}/components/wear_levelling/include&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${IDF_PATH}/components/soc/esp32/include&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/MicroPython_BUILD}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/MicroPython_BUILD/build/include}&quot;"/>

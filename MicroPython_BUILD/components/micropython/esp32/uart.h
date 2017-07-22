@@ -28,6 +28,11 @@
 #ifndef MICROPY_INCLUDED_ESP32_UART_H
 #define MICROPY_INCLUDED_ESP32_UART_H
 
+#define UART_SEMAPHORE_WAIT 1800000	// time to wait for mutex in milliseconds
+
+QueueHandle_t uart0_mutex;
+int uart0_raw_input;
+
 void uart_init(void);
 
 #endif // MICROPY_INCLUDED_ESP32_UART_H

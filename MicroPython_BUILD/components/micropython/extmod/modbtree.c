@@ -36,8 +36,8 @@
 
 #if MICROPY_PY_BTREE
 
-#include <db.h>
-#include <../../btree/btree.h>
+#include "lib/berkeley-db-1.xx/include/db.h"
+#include "lib/berkeley-db-1.xx/btree/btree.h"
 
 typedef struct _mp_obj_btree_t {
     mp_obj_base_t base;

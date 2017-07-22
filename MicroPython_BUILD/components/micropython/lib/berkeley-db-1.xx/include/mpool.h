@@ -33,8 +33,8 @@
  *	@(#)mpool.h	8.2 (Berkeley) 7/14/94
  */
 
-#include <bsd-queue.h>
-#include <filevtable.h>
+#include "lib/berkeley-db-1.xx/PORT/include/bsd-queue.h"
+#include "lib/berkeley-db-1.xx/PORT/include/filevtable.h"
 
 /*
  * The memory pool scheme is a simple one.  Each in-memory page is referenced

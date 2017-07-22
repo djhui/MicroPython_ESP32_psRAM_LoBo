@@ -55,8 +55,8 @@ static char sccsid[] = "@(#)bt_open.c	8.10 (Berkeley) 8/17/94";
 #include <string.h>
 #include <stdint.h>
 
-#include <db.h>
-#include "btree.h"
+#include "lib/berkeley-db-1.xx/include/db.h"
+#include "lib/berkeley-db-1.xx/btree/btree.h"
 
 #ifdef DEBUG
 #undef	MINPSIZE

@@ -42,7 +42,7 @@
 #define MICROPY_PY_BUILTINS_COMPLEX         (1)
 #define MICROPY_CPYTHON_COMPAT              (1)
 #define MICROPY_STREAMS_NON_BLOCK           (1)
-#define MICROPY_STREAMS_POSIX_API           (0)
+#define MICROPY_STREAMS_POSIX_API           (1)
 #define MICROPY_MODULE_BUILTIN_INIT         (1)
 #define MICROPY_MODULE_WEAK_LINKS           (1)
 #define MICROPY_MODULE_FROZEN_STR           (0)
@@ -139,12 +139,18 @@
 #define MICROPY_PY_USSL                     (1)
 #define MICROPY_SSL_MBEDTLS                 (1)
 #define MICROPY_PY_WEBSOCKET                (0)
+
 #ifdef CONFIG_MICROPY_PY_FRAMEBUF
 #define MICROPY_PY_FRAMEBUF                 (1)
 #else
 #define MICROPY_PY_FRAMEBUF                 (0)
 #endif
+
+#ifdef CONFIG_MICROPY_PY_BTREE
+#define MICROPY_PY_BTREE                    (1)
+#else
 #define MICROPY_PY_BTREE                    (0)
+#endif
 
 // fatfs configuration
 #if defined(CONFIG_FATFS_LFN_STACK)
@@ -225,12 +231,17 @@ extern const struct _mp_obj_module_t mp_module_network;
 
 #define MP_STATE_PORT MP_STATE_VM
 
+#if CONFIG_MEMMAP_SPIRAM_ENABLE
 #define MICROPY_PORT_ROOT_POINTERS \
     const char *readline_hist[80]; \
-    mp_obj_t machine_pin_irq_handler[40]; \
+    mp_obj_t machine_pin_irq_handler[40];
+#else
+#define MICROPY_PORT_ROOT_POINTERS \
+    const char *readline_hist[16]; \
+    mp_obj_t machine_pin_irq_handler[40];
+#endif
 
 // type definitions for the specific machine
-
 #define BYTES_PER_WORD (4)
 #define MICROPY_MAKE_POINTER_CALLABLE(p) ((void*)((mp_uint_t)(p)))
 #define MP_PLAT_PRINT_STRN(str, len) mp_hal_stdout_tx_strn_cooked(str, len)

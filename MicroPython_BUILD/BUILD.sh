@@ -184,7 +184,11 @@ elif [ "${arg}" == "clean" ]; then
     echo "Cleaning MicroPython build..."
     echo "============================="
 
-    make  ${opt} ${arg} > /dev/null 2>&1
+    if [ "${MP_SHOW_PROGRESS}" == "yes" ]; then
+        make  ${opt} ${arg}
+    else
+        make  ${opt} ${arg} > /dev/null 2>&1
+    fi
 elif [ "${arg}" == "menuconfig" ]; then
     make  ${opt} ${arg}
 else
@@ -192,7 +196,11 @@ else
     echo "Building MicroPython firmware..."
     echo "================================"
 
-    make  ${opt} ${arg} > /dev/null 2>&1
+    if [ "${MP_SHOW_PROGRESS}" == "yes" ]; then
+        make  ${opt} ${arg}
+    else
+        make  ${opt} ${arg} > /dev/null 2>&1
+    fi
 fi
 
 if [ $? -eq 0 ]; then

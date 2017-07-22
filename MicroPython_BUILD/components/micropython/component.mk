@@ -3,10 +3,8 @@
 #
 # (Uses default behaviour of compiling all source files in directory, adding 'include' to include path.)
 
-CFLAGS += -DFFCONF_H=\"lib/oofatfs/ffconf.h\"
-CFLAGS += -std=gnu99
 
-COMPONENT_ADD_INCLUDEDIRS := .  genhdr py esp32 lib lib/utils lib/mp-readline extmod extmod/crypto-algorithms lib/netutils drivers/dht lib/oofatfs lib/timeutils lib/oofatfs/option
+COMPONENT_ADD_INCLUDEDIRS := .  genhdr py esp32 lib lib/utils lib/mp-readline extmod extmod/crypto-algorithms lib/netutils drivers/dht lib/oofatfs lib/timeutils lib/oofatfs/option lib/berkeley-db-1.xx/include lib/berkeley-db-1.xx/btree lib/berkeley-db-1.xx/db lib/berkeley-db-1.xx/hash lib/berkeley-db-1.xx/man lib/berkeley-db-1.xx/mpool lib/berkeley-db-1.xx/recno
 
 BUILD = $(BUILD_DIR_BASE)
 
@@ -21,7 +19,11 @@ QSTR_DEFS = $(COMPONENT_PATH)/esp32/qstrdefsport.h
 MICROPY_PY_USSL = 0
 MICROPY_SSL_AXTLS = 0
 MICROPY_FATFS = 1
+ifdef CONFIG_MICROPY_PY_BTREE
+MICROPY_PY_BTREE = 1
+else
 MICROPY_PY_BTREE = 0
+endif
 
 FROZEN_DIR = $(COMPONENT_PATH)/esp32/scripts
 FROZEN_MPY_DIR = $(COMPONENT_PATH)/esp32/modules
@@ -101,6 +103,11 @@ MP_CLEAN_EXTRA += $(COMPONENT_PATH)/genhdr/qstrdefs.generated.h
 # --------------------------------
 include $(COMPONENT_PATH)/py/py.mk
 
+CFLAGS += -std=gnu99
+CFLAGS += $(CFLAGS_MOD)
+
+
+
 # List of MicroPython source and object files
 # for Qstr generation
 # -------------------------------------------
@@ -133,6 +140,7 @@ SRC_C =  $(addprefix esp32/,\
 	)
 
 EXTMOD_SRC_C = $(addprefix extmod/,\
+	modbtree.c \
 	)
 
 LIB_SRC_C = $(addprefix lib/,\
@@ -163,7 +171,6 @@ LIB_SRC_C = $(addprefix lib/,\
 	)
 
 LIBS_SRC_C = $(addprefix esp32/libs/,\
-	wildcard_sha2017_org.c \
 	modonewire.c \
 	)
 
@@ -171,6 +178,24 @@ ifeq ($(MICROPY_FATFS), 1)
 LIB_SRC_C += \
 	lib/oofatfs/ff.c \
 	lib/oofatfs/option/unicode.c
+endif
+
+ifeq ($(MICROPY_PY_BTREE),1)
+LIB_SRC_C += \
+	lib/berkeley-db-1.xx/btree/bt_open.c \
+	lib/berkeley-db-1.xx/btree/bt_seq.c \
+	lib/berkeley-db-1.xx/btree/bt_close.c \
+	lib/berkeley-db-1.xx/btree/bt_debug.c \
+	lib/berkeley-db-1.xx/btree/bt_get.c \
+	lib/berkeley-db-1.xx/btree/bt_overflow.c \
+	lib/berkeley-db-1.xx/btree/bt_put.c \
+	lib/berkeley-db-1.xx/btree/bt_utils.c \
+	lib/berkeley-db-1.xx/btree/bt_conv.c \
+	lib/berkeley-db-1.xx/btree/bt_delete.c \
+	lib/berkeley-db-1.xx/btree/bt_page.c \
+	lib/berkeley-db-1.xx/btree/bt_search.c \
+	lib/berkeley-db-1.xx/btree/bt_split.c \
+	lib/berkeley-db-1.xx/mpool/mpool.c
 endif
 
 DRIVERS_SRC_C = $(addprefix drivers/,\
@@ -186,8 +211,8 @@ OBJ_MP += $(addprefix $(BUILD)/, $(LIBS_SRC_C:.c=.o))
 OBJ_MP += $(addprefix $(BUILD)/, $(DRIVERS_SRC_C:.c=.o))
 
 # List of sources for qstr extraction
-# -------------------------------------------------------------------------------------------------
-SRC_QSTR += $(SRC_C) $(EXTMOD_SRC_C) $(LIB_SRC_C) $(DRIVERS_SRC_C) $(APP_FATFS_SRC_C) $(LIBS_SRC_C)
+# ------------------------------------------------------------------------------
+SRC_QSTR += $(SRC_C) $(EXTMOD_SRC_C) $(LIB_SRC_C) $(DRIVERS_SRC_C) $(LIBS_SRC_C)
 # Append any auto-generated sources that are needed by sources listed in SRC_QSTR
 SRC_QSTR_AUTO_DEPS +=
 

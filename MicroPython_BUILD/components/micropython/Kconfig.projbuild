@@ -17,6 +17,12 @@ menu "MicroPython"
         help
         Enable framebuffer support
 
+    config MICROPY_PY_BTREE
+        bool "Include Btree"
+        default n
+        help
+        Include Btree module into build
+
     config MICROPY_TIMEZONE
         string "Time zone"
         default "GMT0BST"
@@ -24,6 +30,13 @@ menu "MicroPython"
         Set the time zone string used when updating the tome from NTP server
         You can use 'zones.csv' file to find the time zone string
         Use the second entry for your Region/city
+
+    config MICROPY_RX_BUFFER_SIZE
+        int "RX buffer size"
+        range 256 4096
+        default 256
+        help
+        Set the size of the stdin RX buffer in bytes
 
     menu "Fat Filesystems"
         config MICROPY_INTERNALFS_START
