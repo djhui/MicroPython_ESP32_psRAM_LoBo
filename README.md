@@ -6,7 +6,7 @@
 
 **This repository can be used to build MicroPython for modules with psRAM as well as for regular ESP32 modules without psRAM.**
 
-For building with **psRAM** support, special wersions of *esp-idf* and *Xtensa toolchain* are needed (included). Otherwise, standart *esp-idf* and toolchain can be used.
+For building with **psRAM** support, special wersions of *esp-idf* and *Xtensa toolchain* are needed (included). Otherwise, standard (master or release) *esp-idf* and toolchain can be used.
 
 ---
 
@@ -17,6 +17,8 @@ ESP32 can use external **SPI RAM (psRAM)** to expand available RAM up to 16MB. C
 It is hard to get, but it is available on some **ESP-WROVER-KIT boards** (the one on which this build was tested on).
 
 [Pycom](https://www.pycom.io/webshop) is also offering the boards and OEM modules with 4MB of psRAM, to be available in August/September (some OEM modules already available).
+
+AnalogLamb is also offering [ALB32-WROVER](https://www.analoglamb.com/product/alb32-wrover-esp32-module-with-64mb-flash-and-32mb-psram/) module with **8MB Flash** and **4MB psRAM** in ESP-WROOM-32 footprint package. Available for pre-order, will be released August 8, 2017.
 
 ---
 
@@ -49,8 +51,9 @@ This way many features not available in standard ESP32 MicroPython are enabled, 
 * **RTC Class** is added to machine module, including methods for synchronization of system time to **ntp** server, **deepsleep**, **wakeup** from deepsleep **on external pin** level, ...
 * **Time zone** can be configured via **menuconfig** and is used when syncronizing time from NTP server
 * Files **timestamp** is correctly set to system time both on internal fat filesysten and on sdcard
-* Some additional frozen modules are added, like **pye** editor, **urequests**, ...
-* **Eclipse** project files included. To include it into Eclipse goto File->Import->Existing Projects into Workspace->Select root directory->[select *MicroPython_BUILD* directory]->Finish. Rebuild index.
+* Some additional frozen modules are added, like **pye** editor, **urequests**, **functools**, **logging**, ...
+* **Btree** module included, can be Enabled/Disabled via **menuconfig**
+* **Eclipse** project files included. To include it into Eclipse goto File->Import->Existing Projects into Workspace->Select root directory->[select *MicroPython_BUILD* directory]->Finish. **Rebuild index**.
 
 ---
 
