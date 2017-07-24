@@ -33,8 +33,6 @@
 #include <string.h>
 
 #include "sdkconfig.h"
-#include "esp_spi_flash.h"
-#include "wear_levelling.h"
 #include "driver/sdmmc_host.h"
 #include "driver/sdmmc_defs.h"
 #include "sdmmc_cmd.h"
@@ -51,7 +49,7 @@ STATIC wl_handle_t fs_handle = WL_INVALID_HANDLE;   // not initialized
 STATIC size_t wl_sect_size = 4096;                  // will be set to actual size after initialization
 
 // esp32 partition configuration needed for wear leveling driver
-STATIC const esp_partition_t fs_part = {
+const esp_partition_t fs_part = {
     ESP_PARTITION_TYPE_DATA,        //type
     ESP_PARTITION_SUBTYPE_DATA_FAT, //subtype
     MICROPY_INTERNALFS_START,       // address (from mpconfigport.h)
@@ -184,8 +182,8 @@ SDcard pinout                 uSDcard pinout
 STATIC sdmmc_card_t sdmmc_card;
 STATIC uint8_t sdcard_status = 1;
 
-//---------------------------------------------------------------
-STATIC void sdcard_print_info(const sdmmc_card_t* card, int mode)
+//--------------------------------------------------------
+void sdcard_print_info(const sdmmc_card_t* card, int mode)
 {
     #if MICROPY_SDMMC_SHOW_INFO
 	printf("---------------------\n");

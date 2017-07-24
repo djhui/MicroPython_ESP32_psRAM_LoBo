@@ -34,6 +34,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "esp_heap_alloc_caps.h"
+//#include "esp_heap_caps.h"
 #include "esp_system.h"
 #include "nvs_flash.h"
 #include "esp_task.h"
@@ -64,12 +65,12 @@
 #define MP_TASK_PRIORITY        (ESP_TASK_PRIO_MIN + 1)
 #if CONFIG_MEMMAP_SPIRAM_ENABLE
 // External SPIRAM is available, more memory for stack & heap can be allocated
-#define MP_TASK_STACK_SIZE      (64 * 1024)
-#define MP_TASK_HEAP_SIZE       (4 * 1024 * 1024 - 256)
+#define MP_TASK_STACK_SIZE      (CONFIG_MICROPY_STACK_SIZE_PSRAM * 1024)
+#define MP_TASK_HEAP_SIZE       (CONFIG_MICROPY_HEAP_SIZE_PSRAM * 1024 - 256)
 #else
 // Only DRAM memory available, limited amount of memory for stack & heap can be used
-#define MP_TASK_STACK_SIZE      (16 * 1024)
-#define MP_TASK_HEAP_SIZE       (92 * 1024)
+#define MP_TASK_STACK_SIZE      (CONFIG_MICROPY_STACK_SIZE * 1024)
+#define MP_TASK_HEAP_SIZE       (CONFIG_MICROPY_HEAP_SIZE * 1024)
 #endif
 #define MP_TASK_STACK_LEN       (MP_TASK_STACK_SIZE / sizeof(StackType_t))
 
@@ -117,9 +118,7 @@ soft_reset:
     machine_pins_init();
 
     // run boot-up scripts
-    #if MICROPY_MODULE_FROZEN_MPY
     pyexec_frozen_module("_boot.py");
-    #endif
     pyexec_file("boot.py");
     if (pyexec_mode_kind == PYEXEC_MODE_FRIENDLY_REPL) {
         pyexec_file("main.py");
@@ -156,7 +155,7 @@ soft_reset:
 void app_main(void) {
     nvs_flash_init();
 
-	esp_log_level_set("*", ESP_LOG_ERROR);
+	//esp_log_level_set("*", ESP_LOG_ERROR);
 
     #if CONFIG_FREERTOS_UNICORE
     printf("\nFreeRTOS running only on FIRST CORE.\n");

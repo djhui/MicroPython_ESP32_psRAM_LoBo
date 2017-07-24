@@ -1,5 +1,4 @@
 import uos
-from flashbdev import bdev
 
 def check_bootsec():
     buf = bytearray(bdev.SEC_SIZE)
@@ -26,13 +25,12 @@ def fs_corrupted():
         n = n - 5
 
 def setup():
+    from flashbdev import bdev
     check_bootsec()
     uos.VfsFat.mkfs(bdev)
     vfs = uos.VfsFat(bdev)
     uos.mount(vfs, '/flash')
     uos.chdir('/flash')
     with open("boot.py", "w") as f:
-        f.write("""\
-# This file is executed on every boot (including wake-boot from deepsleep)
-""")
+        f.write("# This file is executed on every boot (including wake-boot from deepsleep)")
     return vfs

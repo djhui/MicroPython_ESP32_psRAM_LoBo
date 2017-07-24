@@ -40,8 +40,9 @@
 									<listOptionValue builtIn="false" value="&quot;${IDF_PATH}/components/soc/esp32/include&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/MicroPython_BUILD}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/MicroPython_BUILD/build/include}&quot;"/>
-									<listOptionValue builtIn="false" value="/home/LoBo2_Razno/ESP32/xtensa-esp32-elf/bin"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/MicroPython_BUILD/components/micropython/genhdr}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${PWD}/../xtensa-esp32-elf_psram/bin&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${PWD}/../xtensa-esp32-elf_psram/xtensa-esp32-elf/include&quot;"/>
 								</option>
 								<option id="gnu.c.compiler.option.preprocessor.def.symbols.507238637" name="Defined symbols (-D)" superClass="gnu.c.compiler.option.preprocessor.def.symbols" useByScannerDiscovery="false" valueType="definedSymbols">
 									<listOptionValue builtIn="false" value="BUILD_TIME=100000"/>
@@ -102,13 +103,14 @@
 			<target name="all" path="" targetID="org.eclipse.cdt.build.MakeTargetBuilder">
 				<buildCommand>${PWD}/BUILD.sh</buildCommand>
 				<buildArguments/>
-				<buildTarget>-j4</buildTarget>
+				<buildTarget>-j2</buildTarget>
 				<stopOnError>true</stopOnError>
 				<useDefaultCommand>false</useDefaultCommand>
 				<runAllBuilders>true</runAllBuilders>
 			</target>
 			<target name="flash" path="" targetID="org.eclipse.cdt.build.MakeTargetBuilder">
 				<buildCommand>${PWD}/BUILD.sh</buildCommand>
+				<buildArguments/>
 				<buildTarget>flash</buildTarget>
 				<stopOnError>true</stopOnError>
 				<useDefaultCommand>false</useDefaultCommand>
@@ -116,7 +118,32 @@
 			</target>
 			<target name="clean" path="" targetID="org.eclipse.cdt.build.MakeTargetBuilder">
 				<buildCommand>${PWD}/BUILD.sh</buildCommand>
+				<buildArguments/>
 				<buildTarget>clean</buildTarget>
+				<stopOnError>true</stopOnError>
+				<useDefaultCommand>false</useDefaultCommand>
+				<runAllBuilders>true</runAllBuilders>
+			</target>
+			<target name="all psram" path="" targetID="org.eclipse.cdt.build.MakeTargetBuilder">
+				<buildCommand>${PWD}/BUILD.sh</buildCommand>
+				<buildArguments/>
+				<buildTarget>-j2 psram</buildTarget>
+				<stopOnError>true</stopOnError>
+				<useDefaultCommand>false</useDefaultCommand>
+				<runAllBuilders>true</runAllBuilders>
+			</target>
+			<target name="clean psram" path="" targetID="org.eclipse.cdt.build.MakeTargetBuilder">
+				<buildCommand>${PWD}/BUILD.sh</buildCommand>
+				<buildArguments/>
+				<buildTarget>clean psram</buildTarget>
+				<stopOnError>true</stopOnError>
+				<useDefaultCommand>false</useDefaultCommand>
+				<runAllBuilders>true</runAllBuilders>
+			</target>
+			<target name="flash psram" path="" targetID="org.eclipse.cdt.build.MakeTargetBuilder">
+				<buildCommand>${PWD}/BUILD.sh</buildCommand>
+				<buildArguments/>
+				<buildTarget>flash psram</buildTarget>
 				<stopOnError>true</stopOnError>
 				<useDefaultCommand>false</useDefaultCommand>
 				<runAllBuilders>true</runAllBuilders>

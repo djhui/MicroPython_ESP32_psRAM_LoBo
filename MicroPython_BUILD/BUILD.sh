@@ -73,27 +73,32 @@ BUILD_BASE_DIR=${PWD}
 # ########################################################
 if [ "${buildType}" == "psram" ]; then
     cd ../
-    XTENSA_DIR=${PWD}
+    # Add Xtensa toolchain path to system path
+    export PATH=${PWD}/xtensa-esp32-elf_psram/bin:$PATH
+    # Export esp-idf path
+    export IDF_PATH=${PWD}/esp-idf_psram
 
     cd ${BUILD_BASE_DIR}
-
-    # Add Xtensa toolchain path to system path
-    export PATH=${XTENSA_DIR}/xtensa-esp32-elf_psram/bin:$PATH
-    # Export esp-idf path
-    export IDF_PATH=${XTENSA_DIR}/esp-idf_psram
-
     echo ""
     echo "Building MicroPython for ESP32 with esp-idf psRAM branch"
     echo ""
 else
+    cd ../
+    # Add Xtensa toolchain path to system path
+    export PATH=${PWD}/xtensa-esp32-elf/bin:$PATH
+    # Export esp-idf path
+    export IDF_PATH=${PWD}/esp-idf
+
     # ############################################################
     # !PUT HERE THE REAL PATHS TO YOUR XTENSA TOOLCHAIN & ESP-IDF!
     # vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
-    export PATH=$PATH:/home/LoBo2_Razno/ESP32/xtensa-esp32-elf/bin
-    export IDF_PATH=/home/LoBo2_Razno/ESP32/esp-idf
+    #export PATH=$PATH:/home/LoBo2_Razno/ESP32/xtensa-esp32-elf/bin
+    #export IDF_PATH=/home/LoBo2_Razno/ESP32/esp-idf_mpy
     # ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    # fcdc5ccdfac927f7ba919c661519de70d44c3493  11/07 last working
     # ############################################################
 
+    cd ${BUILD_BASE_DIR}
     echo ""
     echo "Building MicroPython for ESP32 with esp-idf master branch"
     echo ""
@@ -144,7 +149,7 @@ if [ "${arg}" != "flash" ] && [ "${arg}" != "erase" ] && [ "${arg}" != "monitor"
         echo "TOOLCHAIN CHANGED, RUN"
         echo "./BUILD.sh menuconfig psram"
         echo "./BUILD.sh clean psram"
-        esho "TO BUILD WITH psRAM support."
+        echo "TO BUILD WITH psRAM support."
         echo ""
         exit 1
     fi
@@ -153,7 +158,7 @@ if [ "${arg}" != "flash" ] && [ "${arg}" != "erase" ] && [ "${arg}" != "monitor"
         echo "TOOLCHAIN CHANGED, RUN"
         echo "./BUILD.sh menuconfig"
         echo "./BUILD.sh clean"
-        esho "TO BUILD WITHOUT psRAM support."
+        echo "TO BUILD WITHOUT psRAM support."
         echo ""
         exit 1
     fi

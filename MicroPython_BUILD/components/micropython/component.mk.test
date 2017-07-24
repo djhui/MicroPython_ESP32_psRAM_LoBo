@@ -1,0 +1,15 @@
+#
+# Component Makefile
+#
+
+COMPONENT_SRCDIRS := 
+COMPONENT_ADD_INCLUDEDIRS := 
+ifdef CONFIG_MICROPY_USE_NATIVE_VFS
+COMPONENT_ADD_INCLUDEDIRS := .  genhdr py esp32 lib lib/utils lib/mp-readline extmod extmod/crypto-algorithms lib/netutils drivers/dht lib/timeutils  lib/berkeley-db-1.xx/include lib/berkeley-db-1.xx/btree lib/berkeley-db-1.xx/db lib/berkeley-db-1.xx/hash lib/berkeley-db-1.xx/man lib/berkeley-db-1.xx/mpool lib/berkeley-db-1.xx/recno
+COMPONENT_PRIV_INCLUDEDIRS := .  genhdr py esp32 lib lib/utils lib/mp-readline extmod extmod/crypto-algorithms lib/netutils drivers/dht lib/timeutils  lib/berkeley-db-1.xx/include lib/berkeley-db-1.xx/btree lib/berkeley-db-1.xx/db lib/berkeley-db-1.xx/hash lib/berkeley-db-1.xx/man lib/berkeley-db-1.xx/mpool lib/berkeley-db-1.xx/recno
+else
+COMPONENT_ADD_INCLUDEDIRS := .  genhdr py esp32 lib lib/utils lib/mp-readline extmod extmod/crypto-algorithms lib/netutils drivers/dht lib/oofatfs lib/timeutils lib/oofatfs/option lib/berkeley-db-1.xx/include lib/berkeley-db-1.xx/btree lib/berkeley-db-1.xx/db lib/berkeley-db-1.xx/hash lib/berkeley-db-1.xx/man lib/berkeley-db-1.xx/mpool lib/berkeley-db-1.xx/recno
+COMPONENT_PRIV_INCLUDEDIRS := .  genhdr py esp32 lib lib/utils lib/mp-readline extmod extmod/crypto-algorithms lib/netutils drivers/dht lib/oofatfs lib/timeutils lib/oofatfs/option lib/berkeley-db-1.xx/include lib/berkeley-db-1.xx/btree lib/berkeley-db-1.xx/db lib/berkeley-db-1.xx/hash lib/berkeley-db-1.xx/man lib/berkeley-db-1.xx/mpool lib/berkeley-db-1.xx/recno
+endif
+
+COMPONENT_OWNCLEANTARGET := clean

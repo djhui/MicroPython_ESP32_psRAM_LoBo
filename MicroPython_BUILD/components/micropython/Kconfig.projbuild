@@ -38,21 +38,62 @@ menu "MicroPython"
         help
         Set the size of the stdin RX buffer in bytes
 
+    config MICROPY_STACK_SIZE
+        int "MicroPython stack size (KB)"
+	   	depends on !MEMMAP_SPIRAM_ENABLE
+        range 8 32
+        default 16
+        help
+        Set the size of the MicroPython stack in Kbytes
+
+    config MICROPY_HEAP_SIZE
+        int "MicroPython heap size (KB)"
+	   	depends on !MEMMAP_SPIRAM_ENABLE
+        range 48 128
+        default 92
+        help
+        Set the size of the MicroPython heap in Kbytes
+
+    config MICROPY_STACK_SIZE_PSRAM
+        int "MicroPython stack size (KB)"
+	   	depends on MEMMAP_SPIRAM_ENABLE
+        range 16 128
+        default 64
+        help
+        Set the size of the MicroPython stack in Kbytes
+        We are using psRAM and stack size can be set up to 128 KB
+
+    config MICROPY_HEAP_SIZE_PSRAM
+        int "MicroPython heap size (KB)"
+	   	depends on MEMMAP_SPIRAM_ENABLE
+        range 1024 4096
+        default 4096
+        help
+        Set the size of the MicroPython heap in Kbytes
+        The heap is placed on psRAM and and can be up to 4096 KB in size
+
     menu "Fat Filesystems"
+        config MICROPY_USE_NATIVE_VFS
+            bool "Use native ESP32 VFS"
+            default y
+            help
+            Use VFS from esp-idf instead of MicroPython's VFS
+            It can mount both Flash partition and SD Card
+
         config MICROPY_INTERNALFS_START
-            hex "Flash start address"
+            hex "Start address of the Flash partition"
             range 0x180000 0x1FF8000
             default 0x180000
             help
-            Starting address of the FatFS area in ESP32 Flash
+            Starting address of the Flash partition to be used as FatFS area
 
         config MICROPY_INTERNALFS_SIZE
             int "Filesystem size"
             range 512 14336
             default 1024
             help
-            File siste size in KB (Kbytes), minimum is 1s 512K
-            Set the size in 4KB increments
+            File sistem size in KB (Kbytes), minimum is 1s 512K
+            Set the size in 4KB increments !
 
         config MICROPY_INTERNALFS_ENCRIPTED
             bool "Use encripted filesystem"
@@ -60,6 +101,14 @@ menu "MicroPython"
             help
             Use encription on internal file system
             Warning: this function is still UNTESTED
+
+        config MICROPY_FATFS_MAX_OPEN_FILES
+            int "Maximum number of opened files"
+		   	depends on MICROPY_USE_NATIVE_VFS
+            range 4 24
+            default 6
+            help
+            Maximum number of opened files
 
         config MICROPY_SDMMC_SHOW_INFO
             bool "Show SDCard info"

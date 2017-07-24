@@ -54,7 +54,14 @@
 #define MICROPY_ENABLE_SCHEDULER            (1)
 #define MICROPY_SCHEDULER_DEPTH             (8)
 #define MICROPY_VFS                         (1)
+
+#ifdef CONFIG_MICROPY_USE_NATIVE_VFS
+#define MICROPY_VFS_NATIVE                  (1)
+#define MICROPY_VFS_FAT                     (0)
+#else
 #define MICROPY_VFS_FAT                     (1)
+#define MICROPY_VFS_NATIVE                  (0)
+#endif
 
 // control over Python builtins
 #define MICROPY_PY_FUNCTION_ATTRS           (1)
@@ -164,8 +171,14 @@
 #define MICROPY_FATFS_MAX_SS                (4096)
 #define MICROPY_FATFS_MAX_LFN               (CONFIG_FATFS_MAX_LFN)  // Get from config
 #define MICROPY_FATFS_LFN_CODE_PAGE         (CONFIG_FATFS_CODEPAGE) // Get from config
-#define mp_type_fileio                      fatfs_type_fileio
-#define mp_type_textio                      fatfs_type_textio
+
+#if defined(MICROPY_VFS_FAT)
+ #define mp_type_fileio                      fatfs_type_fileio
+ #define mp_type_textio                      fatfs_type_textio
+#elif defined(MICROPY_VFS_NATIVE)
+ #define mp_type_fileio                      nativefs_type_fileio
+ #define mp_type_textio                      nativefs_type_textio
+#endif
 
 // internal flash file system configuration
 #define MICROPY_INTERNALFS_START            (CONFIG_MICROPY_INTERNALFS_START)       // filesystem start Flash address

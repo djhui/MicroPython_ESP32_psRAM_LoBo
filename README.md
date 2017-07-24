@@ -6,7 +6,7 @@
 
 **This repository can be used to build MicroPython for modules with psRAM as well as for regular ESP32 modules without psRAM.**
 
-For building with **psRAM** support, special wersions of *esp-idf* and *Xtensa toolchain* are needed (included). Otherwise, standard (master or release) *esp-idf* and toolchain can be used.
+For building with **psRAM** support, special wersions of *esp-idf* and *Xtensa toolchain* are needed (included). Otherwise, standard (master or release) *esp-idf* and toolchain can be used (included).
 
 ---
 
@@ -48,6 +48,7 @@ This way many features not available in standard ESP32 MicroPython are enabled, 
 * **BUILD.sh** script is provided to make **building** MicroPython firmware as **easy** as possible
 * Internal filesystem is built with esp-idf **wear leveling** driver, so there is less danger of damaging the flash with frequent writes. File system parameters (start address, size, ...) can be set via **menuconfig**.
 * **sdcard** module is included which uses esp-idf **sdmmc** driver and can work in **1-bit** and **4-bit** modes. On ESP-WROVER-KIT it works without changes, for imformation on how to connect sdcard on other boards look at *components/micropython/esp32/modesp.c*
+* **Native ESP32 VFS** support for spi Flash & sdcard filesystems, MicroPythons's VFS can still be selected via **menuconfig**
 * **RTC Class** is added to machine module, including methods for synchronization of system time to **ntp** server, **deepsleep**, **wakeup** from deepsleep **on external pin** level, ...
 * **Time zone** can be configured via **menuconfig** and is used when syncronizing time from NTP server
 * Files **timestamp** is correctly set to system time both on internal fat filesysten and on sdcard
@@ -67,15 +68,8 @@ Clone this repository, as it uses some submodules, use --recursive option
 ```
 git clone --recursive https://github.com/loboris/MicroPython_ESP32_psRAM_LoBo.git
 ```
-You have to extract Xtensa toolchain from archive. Goto *MicroPython_ESP32_psRAM_LoBo* directory and execute:
-```
-tar -xf xtensa-esp32-elf_psram.tar.xz
-```
 
 **Goto MicroPython_BUILD directory**
-
-
-Edit **BUILD.sh** script, and change **esp-idf** and **Xtensa toolchain** **PATHS**. For building with psRAM support, the paths are already set correctly.
 
 ---
 

@@ -26,6 +26,10 @@
  * THE SOFTWARE.
  */
 
+#include "mpconfigport.h"
+
+#if MICROPY_VFS_FAT
+
 #include <time.h>
 #include "py/obj.h"
 #include "lib/oofatfs/ff.h"
@@ -39,3 +43,5 @@ DWORD get_fattime(void) {
     return (((DWORD)(tm_info->tm_year - 80) << 25) | (((DWORD)tm_info->tm_mon +1) << 21) | ((DWORD)tm_info->tm_mday << 16) |
            ((DWORD)tm_info->tm_hour << 11) | ((DWORD)tm_info->tm_min << 5) | ((DWORD)tm_info->tm_sec >> 1));
 }
+
+#endif

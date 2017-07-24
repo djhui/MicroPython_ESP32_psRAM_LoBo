@@ -1,3 +1,5 @@
+# Used only for accessing Flash file system in MicroPython VFS mode
+
 import esp
 
 class FlashBdev:

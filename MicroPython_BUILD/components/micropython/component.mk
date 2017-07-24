@@ -4,7 +4,13 @@
 # (Uses default behaviour of compiling all source files in directory, adding 'include' to include path.)
 
 
+ifdef CONFIG_MICROPY_USE_NATIVE_VFS
+COMPONENT_ADD_INCLUDEDIRS := .  genhdr py esp32 lib lib/utils lib/mp-readline extmod extmod/crypto-algorithms lib/netutils drivers/dht lib/timeutils  lib/berkeley-db-1.xx/include lib/berkeley-db-1.xx/btree lib/berkeley-db-1.xx/db lib/berkeley-db-1.xx/hash lib/berkeley-db-1.xx/man lib/berkeley-db-1.xx/mpool lib/berkeley-db-1.xx/recno
+COMPONENT_PRIV_INCLUDEDIRS := .  genhdr py esp32 lib
+else
 COMPONENT_ADD_INCLUDEDIRS := .  genhdr py esp32 lib lib/utils lib/mp-readline extmod extmod/crypto-algorithms lib/netutils drivers/dht lib/oofatfs lib/timeutils lib/oofatfs/option lib/berkeley-db-1.xx/include lib/berkeley-db-1.xx/btree lib/berkeley-db-1.xx/db lib/berkeley-db-1.xx/hash lib/berkeley-db-1.xx/man lib/berkeley-db-1.xx/mpool lib/berkeley-db-1.xx/recno
+COMPONENT_PRIV_INCLUDEDIRS := .  genhdr py esp32 lib
+endif
 
 BUILD = $(BUILD_DIR_BASE)
 
@@ -18,11 +24,18 @@ QSTR_DEFS = $(COMPONENT_PATH)/esp32/qstrdefsport.h
 
 MICROPY_PY_USSL = 0
 MICROPY_SSL_AXTLS = 0
-MICROPY_FATFS = 1
 ifdef CONFIG_MICROPY_PY_BTREE
 MICROPY_PY_BTREE = 1
 else
 MICROPY_PY_BTREE = 0
+endif
+
+ifdef CONFIG_MICROPY_USE_NATIVE_VFS
+MICROPY_PY_USE_NATIVE_VFS = 1
+MICROPY_FATFS = 0
+else
+MICROPY_PY_USE_NATIVE_VFS = 0
+MICROPY_FATFS = 1
 endif
 
 FROZEN_DIR = $(COMPONENT_PATH)/esp32/scripts
@@ -76,6 +89,8 @@ MP_EXTRA_INC += -I$(ESPCOMP)/wpa_supplicant/port/include
 MP_EXTRA_INC += -I$(ESPCOMP)/ethernet/include
 MP_EXTRA_INC += -I$(ESPCOMP)/app_trace/include
 MP_EXTRA_INC += -I$(ESPCOMP)/sdmmc/include
+MP_EXTRA_INC += -I$(ESPCOMP)/fatfs/src
+
 
 # CPP macro
 # ------------
@@ -96,7 +111,6 @@ MP_CLEAN_EXTRA += $(BUILD_DIR_BASE)/py
 MP_CLEAN_EXTRA += $(BUILD_DIR_BASE)/frozen_mpy.c
 MP_CLEAN_EXTRA += $(BUILD_DIR_BASE)/frozen.c
 MP_CLEAN_EXTRA += $(COMPONENT_PATH)/genhdr/qstrdefs.generated.h
-
 
 
 # include py core make definitions
@@ -178,6 +192,19 @@ ifeq ($(MICROPY_FATFS), 1)
 LIB_SRC_C += \
 	lib/oofatfs/ff.c \
 	lib/oofatfs/option/unicode.c
+endif
+
+ifeq ($(MICROPY_PY_USE_NATIVE_VFS), 1)
+LIB_SRC_C += \
+	$(ESPCOMP)/fatfs/src/ff.c \
+	$(ESPCOMP)/fatfs/src/diskio_sdmmc.c \
+	$(ESPCOMP)/fatfs/src/diskio_spiflash.c \
+	$(ESPCOMP)/fatfs/src/diskio.c \
+	$(ESPCOMP)/fatfs/src/vfs_fat_sdmmc.c \
+	$(ESPCOMP)/fatfs/src/vfs_fat_spiflash.c \
+	$(ESPCOMP)/fatfs/src/vfs_fat.c \
+	$(ESPCOMP)/fatfs/src/option/syscall.c \
+	$(ESPCOMP)/fatfs/src/option/unicode.c
 endif
 
 ifeq ($(MICROPY_PY_BTREE),1)
