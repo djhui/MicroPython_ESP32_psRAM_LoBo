@@ -72,13 +72,12 @@ menu "MicroPython"
         Set the size of the MicroPython heap in Kbytes
         The heap is placed on psRAM and and can be up to 4096 KB in size
 
-    menu "Fat Filesystems"
-        config MICROPY_USE_NATIVE_VFS
-            bool "Use native ESP32 VFS"
-            default y
+    menu "File systems"
+        config MICROPY_USE_SPIFFS
+            bool "Use SPIFFS"
+            default n
             help
-            Use VFS from esp-idf instead of MicroPython's VFS
-            It can mount both Flash partition and SD Card
+            Use spiffs on spi Flash instead of FatFS
 
         config MICROPY_INTERNALFS_START
             hex "Start address of the Flash partition"
@@ -88,7 +87,7 @@ menu "MicroPython"
             Starting address of the Flash partition to be used as FatFS area
 
         config MICROPY_INTERNALFS_SIZE
-            int "Filesystem size"
+            int "Filesystem size (KB)"
             range 512 14336
             default 1024
             help
@@ -97,6 +96,7 @@ menu "MicroPython"
 
         config MICROPY_INTERNALFS_ENCRIPTED
             bool "Use encripted filesystem"
+            depends on !MICROPY_USE_SPIFFS
             default n
             help
             Use encription on internal file system
@@ -104,16 +104,15 @@ menu "MicroPython"
 
         config MICROPY_FATFS_MAX_OPEN_FILES
             int "Maximum number of opened files"
-		   	depends on MICROPY_USE_NATIVE_VFS
             range 4 24
             default 6
             help
             Maximum number of opened files
 
         config MICROPY_SDMMC_SHOW_INFO
-            bool "Show SDCard info"
-            default n
+            bool "Show SDCard/SPIFFS info"
+            default y
             help
-            Show sdcard info after initializing the card
+            Show info after initializing SD card or SPIFFS
     endmenu
 endmenu

@@ -38,11 +38,7 @@
 #include "py/mperrno.h"
 #include "extmod/vfs.h"
 #include "genhdr/mpversion.h"
-#if MICROPY_VFS_NATIVE
 #include "extmod/vfs_native.h"
-#else
-#include "extmod/vfs_fat.h"
-#endif
 
 extern const mp_obj_type_t mp_fat_vfs_type;
 
@@ -97,22 +93,12 @@ STATIC mp_obj_t os_dupterm_notify(mp_obj_t obj_in) {
 STATIC MP_DEFINE_CONST_FUN_OBJ_1(os_dupterm_notify_obj, os_dupterm_notify);
 #endif
 
-//--------------------------------
-STATIC mp_obj_t os_vfstype(void) {
-    #if MICROPY_VFS_NATIVE
-    return mp_obj_new_int_from_uint(1);
-    #else
-    return mp_obj_new_int_from_uint(0);
-    #endif
-}
-STATIC MP_DEFINE_CONST_FUN_OBJ_0(os_vfstype_obj, os_vfstype);
 
-
+//==========================================================
 STATIC const mp_rom_map_elem_t os_module_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR___name__), MP_ROM_QSTR(MP_QSTR_uos) },
     { MP_ROM_QSTR(MP_QSTR_uname), MP_ROM_PTR(&os_uname_obj) },
     { MP_ROM_QSTR(MP_QSTR_urandom), MP_ROM_PTR(&os_urandom_obj) },
-    { MP_ROM_QSTR(MP_QSTR_vfstype), MP_ROM_PTR(&os_vfstype_obj) },
     #if MICROPY_PY_OS_DUPTERM
     { MP_ROM_QSTR(MP_QSTR_dupterm), MP_ROM_PTR(&mp_uos_dupterm_obj) },
     { MP_ROM_QSTR(MP_QSTR_dupterm_notify), MP_ROM_PTR(&os_dupterm_notify_obj) },
@@ -130,12 +116,7 @@ STATIC const mp_rom_map_elem_t os_module_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_statvfs), MP_ROM_PTR(&mp_vfs_statvfs_obj) },
     { MP_ROM_QSTR(MP_QSTR_mount), MP_ROM_PTR(&mp_vfs_mount_obj) },
     { MP_ROM_QSTR(MP_QSTR_umount), MP_ROM_PTR(&mp_vfs_umount_obj) },
-    #if MICROPY_VFS_FAT
-    { MP_ROM_QSTR(MP_QSTR_VfsFat), MP_ROM_PTR(&mp_fat_vfs_type) },
-    #endif
-    #if MICROPY_VFS_NATIVE
     { MP_ROM_QSTR(MP_QSTR_VfsNative), MP_ROM_PTR(&mp_native_vfs_type) },
-    #endif
     #endif
 };
 

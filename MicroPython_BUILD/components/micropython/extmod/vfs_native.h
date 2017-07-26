@@ -38,10 +38,16 @@
 #include "py/objint.h"
 #include "extmod/vfs.h"
 
+#if MICROPY_USE_SPIFFS
+#define VFS_NATIVE_MOUNT_POINT "/spiffs"
+#else
 #define VFS_NATIVE_MOUNT_POINT "/spiflash"
+#endif
 #define VFS_NATIVE_SDCARD_MOUNT_POINT "/sdcard"
 #define VFS_NATIVE_TYPE_SPIFLASH 0
 #define VFS_NATIVE_TYPE_SDCARD 1
+#define VFS_NATIVE_TYPE_SPIFFS 2
+
 
 typedef struct _fs_user_mount_t {
     mp_obj_base_t base;

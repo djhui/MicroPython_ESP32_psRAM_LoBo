@@ -93,11 +93,6 @@ def install_tar(f, prefix):
                 save_file(outfname, subf)
     return meta
 
-def expandhome(s):
-    if "~/" in s:
-        h = os.getenv("HOME")
-        s = s.replace("~/", h + "/")
-    return s
 
 import ussl
 import usocket
@@ -226,7 +221,6 @@ def get_install_path():
     if install_path is None:
         # sys.path[0] is current module's path
         install_path = sys.path[1]
-    install_path = expandhome(install_path)
     return install_path
 
 def cleanup():

@@ -34,7 +34,7 @@
  */
 
 #include "py/mpconfig.h"
-#if MICROPY_VFS && MICROPY_VFS_NATIVE
+#if MICROPY_VFS
 
 #include <stdio.h>
 #include <unistd.h>
@@ -73,11 +73,9 @@ STATIC void file_obj_print(const mp_print_t *print, mp_obj_t self_in, mp_print_k
 STATIC mp_uint_t file_obj_read(mp_obj_t self_in, void *buf, mp_uint_t size, int *errcode) {
 	pyb_file_obj_t *self = MP_OBJ_TO_PTR(self_in);
 
-	ESP_LOGV(TAG, "read(%d, buf, %d)", self->fd, size);
 	int sz_out = read(self->fd, buf, size);
-	ESP_LOGV(TAG, " `-> %d", sz_out);
 	if (sz_out < 0) {
-		ESP_LOGE(TAG, "read(%d, buf, %d): error %d", self->fd, size, errno);
+		ESP_LOGD(TAG, "read(%d, buf, %d): error %d", self->fd, size, errno);
 		*errcode = errno;
 		return MP_STREAM_ERROR;
 	}
@@ -88,11 +86,9 @@ STATIC mp_uint_t file_obj_read(mp_obj_t self_in, void *buf, mp_uint_t size, int 
 STATIC mp_uint_t file_obj_write(mp_obj_t self_in, const void *buf, mp_uint_t size, int *errcode) {
 	pyb_file_obj_t *self = MP_OBJ_TO_PTR(self_in);
 
-	ESP_LOGV(TAG, "write(%d, buf, %d)", self->fd, size);
 	int sz_out = write(self->fd, buf, size);
-	ESP_LOGV(TAG, " `-> %d", sz_out);
 	if (sz_out < 0) {
-		ESP_LOGE(TAG, "write(%d, buf, %d): error %d", self->fd, size, errno);
+		ESP_LOGD(TAG, "write(%d, buf, %d): error %d", self->fd, size, errno);
 		*errcode = errno;
 		return MP_STREAM_ERROR;
 	}
@@ -100,11 +96,9 @@ STATIC mp_uint_t file_obj_write(mp_obj_t self_in, const void *buf, mp_uint_t siz
 	while (sz_out > 0) {
 		buf = &((const uint8_t *) buf)[sz_out];
 		size -= sz_out;
-		ESP_LOGV(TAG, "write(%d, buf, %d)", self->fd, size);
 		sz_out = write(self->fd, buf, size);
-		ESP_LOGV(TAG, " `-> %d", sz_out);
 		if (sz_out < 0) {
-			ESP_LOGE(TAG, "write(%d, buf, %d): error %d", self->fd, size, errno);
+			ESP_LOGD(TAG, "write(%d, buf, %d): error %d", self->fd, size, errno);
 			*errcode = errno;
 			return MP_STREAM_ERROR;
 		}
@@ -119,11 +113,10 @@ STATIC mp_obj_t file_obj_close(mp_obj_t self_in) {
 	pyb_file_obj_t *self = MP_OBJ_TO_PTR(self_in);
 	// if fs==NULL then the file is closed and in that case this method is a no-op
 	if (self->fd != -1) {
-		ESP_LOGD(TAG, "close()");
 		int res = close(self->fd);
 		self->fd = -1;
 		if (res < 0) {
-			ESP_LOGE(TAG, "close(%d): error %d", self->fd, errno);
+			ESP_LOGD(TAG, "close(%d): error %d", self->fd, errno);
 			mp_raise_OSError(errno);
 		}
 	}
@@ -142,13 +135,12 @@ STATIC MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(file_obj___exit___obj, 4, 4, file_obj
 STATIC mp_uint_t file_obj_ioctl(mp_obj_t o_in, mp_uint_t request, uintptr_t arg, int *errcode) {
 	pyb_file_obj_t *self = MP_OBJ_TO_PTR(o_in);
 
-	ESP_LOGD(TAG, "ioctl(%u)", request);
 	if (request == MP_STREAM_SEEK) {
 		struct mp_stream_seek_t *s = (struct mp_stream_seek_t*)(uintptr_t)arg;
 
 		off_t off = lseek(self->fd, s->offset, s->whence);
 		if (off == (off_t)-1) {
-			ESP_LOGE(TAG, "ioctl(%d, %d, ..): error %d", self->fd, request, errno);
+			ESP_LOGD(TAG, "ioctl(%d, %d, ..): error %d", self->fd, request, errno);
 			*errcode = errno;
 			return MP_STREAM_ERROR;
 		}
@@ -160,7 +152,7 @@ STATIC mp_uint_t file_obj_ioctl(mp_obj_t o_in, mp_uint_t request, uintptr_t arg,
 		return 0;
 
 	} else {
-		ESP_LOGE(TAG, "ioctl(%d, %d, ..): error %d", self->fd, request, MP_EINVAL);
+		ESP_LOGD(TAG, "ioctl(%d, %d, ..): error %d", self->fd, request, MP_EINVAL);
 		*errcode = MP_EINVAL;
 		return MP_STREAM_ERROR;
 	}
@@ -187,13 +179,12 @@ STATIC mp_obj_t file_open(fs_user_mount_t *vfs, const mp_obj_type_t *type, mp_ar
 	char absbuf[MICROPY_ALLOC_PATH_MAX + 1];
 	fname = mkabspath(vfs, fname, absbuf, sizeof(absbuf));
 	if (fname == NULL) {
-		ESP_LOGE(TAG, "open file Error");
+		ESP_LOGD(TAG, "open file Error");
 		mp_raise_OSError(errno);
 		return mp_const_none;
 	}
 
 	const char *mode_s_orig = mode_s;
-	ESP_LOGD(TAG, "open('%s', '%s')", fname, mode_s_orig);
 
 	int mode_rw = 0, mode_x = 0;
 	while (*mode_s) {
@@ -227,7 +218,7 @@ STATIC mp_obj_t file_open(fs_user_mount_t *vfs, const mp_obj_type_t *type, mp_ar
 	assert(vfs != NULL);
 	int fd = open(fname, mode_x | mode_rw, 0644);
 	if (fd == -1) {
-		ESP_LOGE(TAG, "open('%s', '%s'): error %d", fname, mode_s_orig, errno);
+		ESP_LOGD(TAG, "open('%s', '%s'): error %d", fname, mode_s_orig, errno);
 		m_del_obj(pyb_file_obj_t, o);
 		mp_raise_OSError(errno);
 	}
@@ -317,4 +308,4 @@ mp_obj_t nativefs_builtin_open_self(mp_obj_t self_in, mp_obj_t path, mp_obj_t mo
 	return file_open(self, &mp_type_textio, arg_vals);
 }
 
-#endif // MICROPY_VFS && MICROPY_VFS_NATIVE
+#endif // MICROPY_VFS

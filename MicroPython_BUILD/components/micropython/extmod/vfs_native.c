@@ -34,22 +34,18 @@
  */
 
 #include "py/mpconfig.h"
-#if MICROPY_VFS_NATIVE
-
-#if !MICROPY_VFS
-#error "with MICROPY_VFS_NATIVE enabled, must also enable MICROPY_VFS"
-#endif
 
 #include <string.h>
 #include <stdio.h>
 #include <unistd.h>
 #include <errno.h>
+#include "ff.h"
 
 #include "esp_vfs.h"
 #include "esp_vfs_fat.h"
 #include "esp_system.h"
 #include "esp_log.h"
-
+#include "spiffs_vfs.h"
 #include "modesp.h"
 #include "diskio.h"
 #include <fcntl.h>
@@ -62,11 +58,43 @@
 #include "lib/timeutils/timeutils.h"
 #include "sdkconfig.h"
 
+
+STATIC const byte fresult_to_errno_table[20] = {
+    [FR_OK] = 0,
+    [FR_DISK_ERR] = MP_EIO,
+    [FR_INT_ERR] = MP_EIO,
+    [FR_NOT_READY] = MP_EBUSY,
+    [FR_NO_FILE] = MP_ENOENT,
+    [FR_NO_PATH] = MP_ENOENT,
+    [FR_INVALID_NAME] = MP_EINVAL,
+    [FR_DENIED] = MP_EACCES,
+    [FR_EXIST] = MP_EEXIST,
+    [FR_INVALID_OBJECT] = MP_EINVAL,
+    [FR_WRITE_PROTECTED] = MP_EROFS,
+    [FR_INVALID_DRIVE] = MP_ENODEV,
+    [FR_NOT_ENABLED] = MP_ENODEV,
+    [FR_NO_FILESYSTEM] = MP_ENODEV,
+    [FR_MKFS_ABORTED] = MP_EIO,
+    [FR_TIMEOUT] = MP_EIO,
+    [FR_LOCKED] = MP_EIO,
+    [FR_NOT_ENOUGH_CORE] = MP_ENOMEM,
+    [FR_TOO_MANY_OPEN_FILES] = MP_EMFILE,
+    [FR_INVALID_PARAMETER] = MP_EINVAL,
+};
+
+#if _MAX_SS == _MIN_SS
+#define SECSIZE(fs) (_MIN_SS)
+#else
+#define SECSIZE(fs) ((fs)->ssize)
+#endif
+
 #define mp_obj_native_vfs_t fs_user_mount_t
 
 STATIC const char *TAG = "vfs_native";
 
+#if !MICROPY_USE_SPIFFS
 STATIC wl_handle_t s_wl_handle = WL_INVALID_HANDLE;
+#endif
 STATIC bool native_vfs_mounted[2] = {false, false};
 STATIC sdmmc_card_t *sdmmc_card;
 
@@ -74,34 +102,42 @@ STATIC sdmmc_card_t *sdmmc_card;
 // esp-idf doesn't seem to have a cwd; create one.
 char cwd[MICROPY_ALLOC_PATH_MAX + 1] = { 0 };
 
-//-------------------------
-int chdir(const char *path)
+//-------------------------------------
+int vfs_chdir(const char *path, int device)
 {
-	struct stat buf;
-	int res = stat(path, &buf);
-	if (res < 0) {
-		return -1;
-	}
-	if ((buf.st_mode & S_IFDIR) == 0)
-	{
-		errno = ENOTDIR;
-		return -1;
-	}
-	if (strlen(path) >= sizeof(cwd))
-	{
-		errno = ENAMETOOLONG;
-		return -1;
+	ESP_LOGD(TAG, "vfs_chdir() path: '%s'", path);
+
+	int f = 1;
+	if ((device == VFS_NATIVE_TYPE_SDCARD) && (strcmp(path,  VFS_NATIVE_SDCARD_MOUNT_POINT"/") == 0)) f = 0;
+	else if (strcmp(path, VFS_NATIVE_MOUNT_POINT"/") == 0) f = 0;
+
+	if (f) {
+		struct stat buf;
+		int res = stat(path, &buf);
+		if (res < 0) {
+			return -1;
+		}
+		if ((buf.st_mode & S_IFDIR) == 0)
+		{
+			errno = ENOTDIR;
+			return -2;
+		}
+		if (strlen(path) >= sizeof(cwd))
+		{
+			errno = ENAMETOOLONG;
+			return -3;
+		}
 	}
 
 	strncpy(cwd, path, sizeof(cwd));
-	ESP_LOGD(TAG, "cwd set to '%s'", cwd);
+
+	ESP_LOGD(TAG, "cwd set to '%s' from path '%s'", cwd, path);
 	return 0;
 }
 
 //----------------------------------
 char *getcwd(char *buf, size_t size)
 {
-	ESP_LOGD(TAG, "requesting cwd '%s'", cwd);
 	if (size <= strlen(cwd))
 	{
 		errno = ENAMETOOLONG;
@@ -111,30 +147,45 @@ char *getcwd(char *buf, size_t size)
 	return buf;
 }
 
+// Return absolute path un Flash filesystem
+// It always starts with VFS_NATIVE_[xxx_]MOUNT_POINT (/spiflash/ | /spiffs/ | /sdcard/)
+// with 'path' stripped of leading '/', './', '../', '..'
+// On input 'path' DOES NOT contain MPY mount point ('/flash' or 'sd')
 //-------------------------------------------------------------------------------------
 const char *mkabspath(fs_user_mount_t *vfs, const char *path, char *absbuf, int buflen)
 {
-	ESP_LOGV(TAG, "abspath '%s' in cwd '%s'", path, cwd);
+	ESP_LOGD(TAG, "abspath '%s' in cwd '%s'", path, cwd);
 
 	if (path[0] == '/')
 	{ // path is already absolute
 		if (vfs->device == VFS_NATIVE_TYPE_SDCARD) sprintf(absbuf, "%s%s", VFS_NATIVE_SDCARD_MOUNT_POINT, path);
 		else sprintf(absbuf, "%s%s", VFS_NATIVE_MOUNT_POINT, path);
-		ESP_LOGV(TAG, " path '%s' is absolute `-> '%s'", path, absbuf);
+		ESP_LOGD(TAG, " path '%s' is absolute `-> '%s'", path, absbuf);
 		return absbuf;
 	}
 
-	int len;
-	if (vfs->device == VFS_NATIVE_TYPE_SDCARD) len = strlen(cwd) + strlen(VFS_NATIVE_SDCARD_MOUNT_POINT) + 1;
-	else len = strlen(cwd) + strlen(VFS_NATIVE_MOUNT_POINT) + 1;
-	if (len >= buflen)
-	{
-		errno = ENAMETOOLONG;
-		return NULL;
-	}
+	int len,  f = 0;
+	char buf[strlen(cwd) + 16];
 
-	char buf[len];
-	strcpy(buf, cwd);
+	if (vfs->device == VFS_NATIVE_TYPE_SDCARD) {
+		if (strstr(cwd, VFS_NATIVE_SDCARD_MOUNT_POINT) != cwd) {
+			strcpy(buf, VFS_NATIVE_SDCARD_MOUNT_POINT);
+			if (cwd[0] != '/') strcat(buf, "/");
+			strcat(buf, cwd);
+		}
+		else strcpy(buf, cwd);
+	}
+	else {
+		if (strstr(cwd, VFS_NATIVE_MOUNT_POINT) != cwd)	{
+			strcpy(buf, VFS_NATIVE_MOUNT_POINT);
+			if (cwd[0] != '/') strcat(buf, "/");
+			strcat(buf, cwd);
+		}
+		else strcpy(buf, cwd);
+	}
+	if (buf[strlen(buf)-1] == '/') buf[strlen(buf)-1] = 0; // remove trailing '/' from cwd
+
+	len = strlen(buf);
 	while (1) {
 		// handle './' and '../'
 		if (path[0] == 0)
@@ -149,13 +200,13 @@ const char *mkabspath(fs_user_mount_t *vfs, const char *path, char *absbuf, int 
 		}
 		if (path[0] == '.' && path[1] == '.' && path[2] == 0) { // '..'
 			path = &path[2];
-			while (len > 0 && buf[len] != '/') len--;
+			while (len > 0 && buf[len] != '/') len--; // goto cwd parrent dir
 			buf[len] = 0;
 			break;
 		}
 		if (path[0] == '.' && path[1] == '.' && path[2] == '/') { // '../'
 			path = &path[3];
-			while (len > 0 && buf[len] != '/') len--;
+			while (len > 0 && buf[len] != '/') len--; // goto cwd parrent dir
 			buf[len] = 0;
 			continue;
 		}
@@ -163,8 +214,6 @@ const char *mkabspath(fs_user_mount_t *vfs, const char *path, char *absbuf, int 
 			errno = ENAMETOOLONG;
 			return NULL;
 		}
-		strcat(buf, "/");
-		len++;
 		break;
 	}
 
@@ -172,13 +221,17 @@ const char *mkabspath(fs_user_mount_t *vfs, const char *path, char *absbuf, int 
 		errno = ENAMETOOLONG;
 		return NULL;
 	}
-	strcat(buf, path);
-	if (buf[0] == 0) {
-		strcat(buf, "/");
-	}
-	if (vfs->device == VFS_NATIVE_TYPE_SDCARD) sprintf(absbuf, "%s%s", VFS_NATIVE_SDCARD_MOUNT_POINT, buf);
-	else sprintf(absbuf, "%s%s", VFS_NATIVE_MOUNT_POINT, buf);
-	ESP_LOGV(TAG, " `-> '%s'", absbuf);
+
+	ESP_LOGD(TAG, " cwd: '%s'  path: '%s'", buf, path);
+	strcpy(absbuf, buf);
+	if ((strlen(path) > 0) && (path[0] != '/')) strcat(absbuf, "/");
+	strcat(absbuf, path);
+
+	// If root is selected, add trailing '/'
+	if ((vfs->device == VFS_NATIVE_TYPE_SDCARD) && (strcmp(absbuf, VFS_NATIVE_SDCARD_MOUNT_POINT) == 0)) strcat(absbuf, "/");
+	else if (strcmp(absbuf, VFS_NATIVE_MOUNT_POINT) == 0) strcat(absbuf, "/");
+
+	ESP_LOGD(TAG, " '%s' -> '%s'", path, absbuf);
 	return absbuf;
 }
 
@@ -188,7 +241,7 @@ STATIC mp_obj_t native_vfs_make_new(const mp_obj_type_t *type, size_t n_args, si
 
 	mp_int_t dev_type = mp_obj_get_int(args[0]);
 	if ((dev_type != VFS_NATIVE_TYPE_SPIFLASH) && (dev_type != VFS_NATIVE_TYPE_SDCARD)) {
-		ESP_LOGE(TAG, "Unknown device type (%d)", dev_type);
+		ESP_LOGD(TAG, "Unknown device type (%d)", dev_type);
 		mp_raise_OSError(ENXIO);
 	}
 
@@ -202,14 +255,13 @@ STATIC mp_obj_t native_vfs_make_new(const mp_obj_type_t *type, size_t n_args, si
 	else {
 		vfs->mode = 0;
 	}
-	ESP_LOGD(TAG, "new(%d)", vfs->device);
 
 	return MP_OBJ_FROM_PTR(vfs);
 }
 
 //-------------------------------------------------
 STATIC mp_obj_t native_vfs_mkfs(mp_obj_t bdev_in) {
-	ESP_LOGD(TAG, "mkfs()");
+	ESP_LOGE(TAG, "mkfs(): NOT SUPPORTED");
 	// not supported
 	mp_raise_OSError(ENOENT);
 	return mp_const_none;
@@ -241,7 +293,6 @@ STATIC mp_obj_t native_vfs_ilistdir_func(size_t n_args, const mp_obj_t *args) {
 		return mp_const_none;
 	}
 
-	ESP_LOGD(TAG, "ilistdir('%s')", path);
 	return native_vfs_ilistdir2(self, path, is_str_type);
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(native_vfs_ilistdir_obj, 1, 2, native_vfs_ilistdir_func);
@@ -258,7 +309,6 @@ STATIC mp_obj_t native_vfs_remove(mp_obj_t vfs_in, mp_obj_t path_in) {
 		return mp_const_none;
 	}
 
-	ESP_LOGD(TAG, "unlink('%s')", path);
 	int res = unlink(path);
 	if (res < 0) {
 		mp_raise_OSError(errno);
@@ -281,7 +331,6 @@ STATIC mp_obj_t native_vfs_rmdir(mp_obj_t vfs_in, mp_obj_t path_in) {
 		return mp_const_none;
 	}
 
-	ESP_LOGD(TAG, "rmdir('%s')", path);
 	int res = rmdir(path);
 	if (res < 0) {
 		mp_raise_OSError(errno);
@@ -312,7 +361,6 @@ STATIC mp_obj_t native_vfs_rename(mp_obj_t vfs_in, mp_obj_t path_in, mp_obj_t pa
 		return mp_const_none;
 	}
 
-	ESP_LOGD(TAG, "rename('%s', '%s')", old_path, new_path);
 	int res = rename(old_path, new_path);
 	/*
 	// FIXME: have to check if we can replace files with this
@@ -346,7 +394,6 @@ STATIC mp_obj_t native_vfs_mkdir(mp_obj_t vfs_in, mp_obj_t path_o) {
 		return mp_const_none;
 	}
 
-	ESP_LOGD(TAG, "mkdir('%s')", path);
 	int res = mkdir(path, 0755);
 	if (res < 0) {
 		mp_raise_OSError(errno);
@@ -370,9 +417,9 @@ STATIC mp_obj_t native_vfs_chdir(mp_obj_t vfs_in, mp_obj_t path_in) {
 		return mp_const_none;
 	}
 
-	ESP_LOGD(TAG, "chdir('%s')", path);
-	int res = chdir(path);
+	int res = vfs_chdir(path, self->device);
 	if (res < 0) {
+		ESP_LOGD(TAG, "chdir(): Error %d (%d)", res, errno);
 		mp_raise_OSError(errno);
 		return mp_const_none;
 	}
@@ -387,7 +434,7 @@ STATIC mp_obj_t native_vfs_getcwd(mp_obj_t vfs_in) {
 //	mp_obj_native_vfs_t *self = MP_OBJ_TO_PTR(vfs_in);
 
 	char buf[MICROPY_ALLOC_PATH_MAX + 1];
-	ESP_LOGD(TAG, "getcwd()");
+
 	char *ch = getcwd(buf, sizeof(buf));
 	if (ch == NULL) {
 		mp_raise_OSError(errno);
@@ -412,7 +459,6 @@ STATIC mp_obj_t native_vfs_stat(mp_obj_t vfs_in, mp_obj_t path_in) {
 		return mp_const_none;
 	}
 
-	ESP_LOGD(TAG, "stat('%s')", path);
 	struct stat buf;
 	if (path[0] == 0 || (path[0] == '/' && path[1] == 0)) {
 		// stat root directory
@@ -443,21 +489,67 @@ STATIC mp_obj_t native_vfs_stat(mp_obj_t vfs_in, mp_obj_t path_in) {
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_2(native_vfs_stat_obj, native_vfs_stat);
 
+
 // Get the status of a VFS.
 //---------------------------------------------------------------------
 STATIC mp_obj_t native_vfs_statvfs(mp_obj_t vfs_in, mp_obj_t path_in) {
-//	mp_obj_native_vfs_t *self = MP_OBJ_TO_PTR(vfs_in);
+	mp_obj_native_vfs_t *self = MP_OBJ_TO_PTR(vfs_in);
 	const char *path = mp_obj_str_get_str(path_in);
 
-	ESP_LOGD(TAG, "statvfs('%s')", path);
+	ESP_LOGD(TAG, "statvfs('%s') device: %d", path, self->device);
 
-	// not supported
-	mp_raise_OSError(ENOENT);
-	return mp_const_none;
+	int f_bsize=0, f_blocks=0, f_bfree=0, maxlfn=0;
+    FRESULT res=0;
+	FATFS *fatfs;
+    DWORD fre_clust;
+
+	if (self->device == VFS_NATIVE_TYPE_SPIFLASH) {
+		#if MICROPY_USE_SPIFFS
+		uint32_t total, used;
+		spiffs_fs_stat(&total, &used);
+		f_bsize = SPIFFS_LOG_PAGE_SIZE;
+		f_blocks = total / SPIFFS_LOG_PAGE_SIZE;
+		f_bfree = (total-used) / SPIFFS_LOG_PAGE_SIZE;
+		maxlfn = MAXNAMLEN;
+		#else
+		res = f_getfree(VFS_NATIVE_MOUNT_POINT, &fre_clust, &fatfs);
+		goto is_fat;
+		#endif
+	}
+	else if (self->device == VFS_NATIVE_TYPE_SDCARD) {
+		res = f_getfree(VFS_NATIVE_SDCARD_MOUNT_POINT, &fre_clust, &fatfs);
+#if !MICROPY_USE_SPIFFS
+is_fat:
+#endif
+	    if (res != 0) {
+	    	ESP_LOGD(TAG, "statvfs('%s') Error %d", path, res);
+	        mp_raise_OSError(fresult_to_errno_table[res]);
+	    }
+	    f_bsize = fatfs->csize * SECSIZE(fatfs);
+	    f_blocks = fatfs->n_fatent - 2;
+	    f_bfree = fre_clust;
+	    maxlfn = _MAX_LFN;
+	}
+
+	mp_obj_tuple_t *t = MP_OBJ_TO_PTR(mp_obj_new_tuple(10, NULL));
+
+    t->items[0] = MP_OBJ_NEW_SMALL_INT(f_bsize); // f_bsize
+    t->items[1] = t->items[0]; // f_frsize
+    t->items[2] = MP_OBJ_NEW_SMALL_INT(f_blocks); // f_blocks
+    t->items[3] = MP_OBJ_NEW_SMALL_INT(f_bfree); // f_bfree
+    t->items[4] = t->items[3]; // f_bavail
+    t->items[5] = MP_OBJ_NEW_SMALL_INT(0); // f_files
+    t->items[6] = MP_OBJ_NEW_SMALL_INT(0); // f_ffree
+    t->items[7] = MP_OBJ_NEW_SMALL_INT(0); // f_favail
+    t->items[8] = MP_OBJ_NEW_SMALL_INT(0); // f_flags
+    t->items[9] = MP_OBJ_NEW_SMALL_INT(maxlfn); // f_namemax
+
+    return MP_OBJ_FROM_PTR(t);
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_2(native_vfs_statvfs_obj, native_vfs_statvfs);
 
 
+#if !MICROPY_USE_SPIFFS
 //------------------------------------------------------------------------------------------------------------------------------------
 STATIC esp_err_t vfs_fat_spiflash_mount(const char* base_path, const esp_vfs_fat_mount_config_t* mount_config, wl_handle_t* wl_handle)
 {
@@ -502,7 +594,7 @@ STATIC esp_err_t vfs_fat_spiflash_mount(const char* base_path, const esp_vfs_fat
             goto fail;
         }
         workbuf = malloc(workbuf_size);
-        ESP_LOGI(TAG, "Formatting Flash FATFS partition");
+        ESP_LOGI(TAG, "** Formatting Flash FATFS partition **");
         fresult = f_mkfs(drv, FM_ANY | FM_SFD, workbuf_size, workbuf, workbuf_size);
         if (fresult != FR_OK) {
             result = ESP_FAIL;
@@ -510,7 +602,7 @@ STATIC esp_err_t vfs_fat_spiflash_mount(const char* base_path, const esp_vfs_fat
             goto fail;
         }
         free(workbuf);
-        ESP_LOGI(TAG, "Mounting again");
+        ESP_LOGI(TAG, "** Mounting again **");
         fresult = f_mount(fs, drv, 0);
         if (fresult != FR_OK) {
             result = ESP_FAIL;
@@ -525,6 +617,37 @@ fail:
     esp_vfs_fat_unregister_path(base_path);
     ff_diskio_unregister(pdrv);
     return result;
+}
+#endif
+
+//------------------------
+STATIC void cleckBoot_py()
+{
+	FILE *fd;
+	fd = fopen(VFS_NATIVE_MOUNT_POINT"/boot.py", "rb");
+    if (fd == NULL) {
+    	fd = fopen(VFS_NATIVE_MOUNT_POINT"/boot.py", "wb");
+        if (fd != NULL) {
+        	char buf[128] = {'\0'};
+        	sprintf(buf, "# This file is executed on every boot (including wake-boot from deepsleep)\nimport sys\nsys.path[1] = '/flash/lib'\n");
+        	int len = strlen(buf);
+    		int res = fwrite(buf, 1, len, fd);
+    		if (res != len) {
+    			ESP_LOGE(TAG, "Error writing to 'boot.py'");
+    		}
+    		else {
+    			ESP_LOGD(TAG, "** 'boot.py' created **");
+    		}
+    		fclose(fd);
+        }
+        else {
+			ESP_LOGE(TAG, "Error creating 'boot.py'");
+        }
+    }
+    else {
+		ESP_LOGD(TAG, "** 'boot.py' found **");
+    	fclose(fd);
+    }
 }
 
 //------------------------------------------------------------------------------------
@@ -545,6 +668,15 @@ STATIC mp_obj_t native_vfs_mount(mp_obj_t self_in, mp_obj_t readonly, mp_obj_t m
 
 	if (self->device == VFS_NATIVE_TYPE_SPIFLASH) {
 		// spiflash device
+		#if MICROPY_USE_SPIFFS
+		vfs_spiffs_register();
+	   	if (spiffs_is_mounted == 0) {
+			ESP_LOGE(TAG, "Failed to mount Flash partition as SPIFFS.");
+			mp_raise_OSError(MP_EIO);
+	   	}
+		native_vfs_mounted[self->device] = true;
+		cleckBoot_py();
+		#else
 		const esp_vfs_fat_mount_config_t mount_config = {
 			.max_files              = CONFIG_MICROPY_FATFS_MAX_OPEN_FILES,
 			.format_if_mount_failed = true,
@@ -555,11 +687,13 @@ STATIC mp_obj_t native_vfs_mount(mp_obj_t self_in, mp_obj_t readonly, mp_obj_t m
 		esp_err_t err = vfs_fat_spiflash_mount(VFS_NATIVE_MOUNT_POINT, &mount_config, &s_wl_handle);
 
 		if (err != ESP_OK) {
-			ESP_LOGE(TAG, "Failed to mount Flash partition (%d)", err);
+			ESP_LOGE(TAG, "Failed to mount Flash partition as FatFS(%d)", err);
 			mp_raise_OSError(MP_EIO);
 		}
-		ESP_LOGV(TAG, "SPI Flash FATFS mounted.");
+		ESP_LOGD(TAG, "SPI Flash FATFS mounted.");
 		native_vfs_mounted[self->device] = true;
+		cleckBoot_py();
+		#endif
 	}
 	else if (self->device == VFS_NATIVE_TYPE_SDCARD) {
 	    // Configure sdmmc interface
@@ -621,6 +755,7 @@ STATIC mp_obj_t native_vfs_umount(mp_obj_t self_in) {
 	}
 	else if (self->device == VFS_NATIVE_TYPE_SPIFLASH) {
         ESP_LOGW(TAG, "Filesystem on Flash cannot be unmounted.");
+		mp_raise_OSError(MP_EIO);
 	}
 
 	return mp_const_none;
@@ -653,4 +788,3 @@ const mp_obj_type_t mp_native_vfs_type = {
 	.locals_dict = (mp_obj_dict_t*)&native_vfs_locals_dict,
 };
 
-#endif // MICROPY_VFS_NATIVE

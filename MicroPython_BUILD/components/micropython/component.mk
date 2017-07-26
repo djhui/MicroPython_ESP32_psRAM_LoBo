@@ -4,13 +4,8 @@
 # (Uses default behaviour of compiling all source files in directory, adding 'include' to include path.)
 
 
-ifdef CONFIG_MICROPY_USE_NATIVE_VFS
-COMPONENT_ADD_INCLUDEDIRS := .  genhdr py esp32 lib lib/utils lib/mp-readline extmod extmod/crypto-algorithms lib/netutils drivers/dht lib/timeutils  lib/berkeley-db-1.xx/include lib/berkeley-db-1.xx/btree lib/berkeley-db-1.xx/db lib/berkeley-db-1.xx/hash lib/berkeley-db-1.xx/man lib/berkeley-db-1.xx/mpool lib/berkeley-db-1.xx/recno
+COMPONENT_ADD_INCLUDEDIRS := .  genhdr py esp32 lib lib/utils lib/mp-readline extmod extmod/crypto-algorithms lib/netutils drivers/dht lib/timeutils  lib/berkeley-db-1.xx/include lib/berkeley-db-1.xx/btree lib/berkeley-db-1.xx/db lib/berkeley-db-1.xx/hash lib/berkeley-db-1.xx/man lib/berkeley-db-1.xx/mpool lib/berkeley-db-1.xx/recno ../spiffs
 COMPONENT_PRIV_INCLUDEDIRS := .  genhdr py esp32 lib
-else
-COMPONENT_ADD_INCLUDEDIRS := .  genhdr py esp32 lib lib/utils lib/mp-readline extmod extmod/crypto-algorithms lib/netutils drivers/dht lib/oofatfs lib/timeutils lib/oofatfs/option lib/berkeley-db-1.xx/include lib/berkeley-db-1.xx/btree lib/berkeley-db-1.xx/db lib/berkeley-db-1.xx/hash lib/berkeley-db-1.xx/man lib/berkeley-db-1.xx/mpool lib/berkeley-db-1.xx/recno
-COMPONENT_PRIV_INCLUDEDIRS := .  genhdr py esp32 lib
-endif
 
 BUILD = $(BUILD_DIR_BASE)
 
@@ -30,13 +25,7 @@ else
 MICROPY_PY_BTREE = 0
 endif
 
-ifdef CONFIG_MICROPY_USE_NATIVE_VFS
-MICROPY_PY_USE_NATIVE_VFS = 1
 MICROPY_FATFS = 0
-else
-MICROPY_PY_USE_NATIVE_VFS = 0
-MICROPY_FATFS = 1
-endif
 
 FROZEN_DIR = $(COMPONENT_PATH)/esp32/scripts
 FROZEN_MPY_DIR = $(COMPONENT_PATH)/esp32/modules
@@ -47,6 +36,7 @@ ESPCOMP = $(IDF_PATH)/components
 MP_EXTRA_INC += -I.
 MP_EXTRA_INC += -I$(PROJECT_PATH)/main
 MP_EXTRA_INC += -I$(COMPONENT_PATH)
+MP_EXTRA_INC += -I$(PROJECT_PATH)/components/spiffs
 MP_EXTRA_INC += -I$(COMPONENT_PATH)/py
 MP_EXTRA_INC += -I$(COMPONENT_PATH)/lib/mp-readline
 MP_EXTRA_INC += -I$(COMPONENT_PATH)/lib/netutils
@@ -184,17 +174,22 @@ LIB_SRC_C = $(addprefix lib/,\
 	utils/sys_stdio_mphal.c \
 	)
 
+LIBS_SPIFFS_C = $(addprefix $(PROJECT_PATH)/components/spiffs/,\
+	esp_spiffs.c \
+	list.c \
+	mutex.c \
+	spiffs_cache.c \
+	spiffs_check.c \
+	spiffs_gc.c \
+	spiffs_hydrogen.c \
+	spiffs_nucleus.c \
+	spiffs_vfs.c \
+	)
+
 LIBS_SRC_C = $(addprefix esp32/libs/,\
 	modonewire.c \
 	)
 
-ifeq ($(MICROPY_FATFS), 1)
-LIB_SRC_C += \
-	lib/oofatfs/ff.c \
-	lib/oofatfs/option/unicode.c
-endif
-
-ifeq ($(MICROPY_PY_USE_NATIVE_VFS), 1)
 LIB_SRC_C += \
 	$(ESPCOMP)/fatfs/src/ff.c \
 	$(ESPCOMP)/fatfs/src/diskio_sdmmc.c \
@@ -205,7 +200,6 @@ LIB_SRC_C += \
 	$(ESPCOMP)/fatfs/src/vfs_fat.c \
 	$(ESPCOMP)/fatfs/src/option/syscall.c \
 	$(ESPCOMP)/fatfs/src/option/unicode.c
-endif
 
 ifeq ($(MICROPY_PY_BTREE),1)
 LIB_SRC_C += \
@@ -235,6 +229,7 @@ OBJ_MP += $(addprefix $(BUILD)/, $(SRC_C:.c=.o))
 OBJ_MP += $(addprefix $(BUILD)/, $(EXTMOD_SRC_C:.c=.o))
 OBJ_MP += $(addprefix $(BUILD)/, $(LIB_SRC_C:.c=.o))
 OBJ_MP += $(addprefix $(BUILD)/, $(LIBS_SRC_C:.c=.o))
+OBJ_MP += $(addprefix $(BUILD)/, $(LIBS_SPIFFS_C:.c=.o))
 OBJ_MP += $(addprefix $(BUILD)/, $(DRIVERS_SRC_C:.c=.o))
 
 # List of sources for qstr extraction

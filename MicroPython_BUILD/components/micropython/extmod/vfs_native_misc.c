@@ -34,7 +34,6 @@
  */
 
 #include "py/mpconfig.h"
-#if MICROPY_VFS_NATIVE
 
 #include <string.h>
 #include <stdio.h>
@@ -50,7 +49,7 @@
 #include "extmod/vfs_native.h"
 #include "py/lexer.h"
 
-static const char *TAG = "vfs_native_misc";
+//static const char *TAG = "vfs_native_misc";
 
 typedef struct _mp_vfs_native_ilistdir_it_t {
 	mp_obj_base_t base;
@@ -72,7 +71,6 @@ STATIC mp_obj_t mp_vfs_native_ilistdir_it_iternext(mp_obj_t self_in) {
 		}
 
 		char *fn = de->d_name;
-		ESP_LOGD(TAG, "readdir -> '%s'", fn);
 
 		// filter . and ..
 		if (fn[0] == '.' && ((fn[1] == '.' && fn[2] == 0) || fn[1] == 0))
@@ -110,10 +108,6 @@ mp_obj_t native_vfs_ilistdir2(fs_user_mount_t *vfs, const char *path, bool is_st
 	iter->iternext = mp_vfs_native_ilistdir_it_iternext;
 	iter->is_str = is_str_type;
 
-	char fullpath[280] = { '\0' };
-	sprintf(fullpath, "%s/%s", VFS_NATIVE_MOUNT_POINT, path);
-	ESP_LOGD(TAG, "opendir ('%s') [%s]", path, fullpath);
-
 	DIR *d = opendir(path);
 	if (d == NULL) {
 		mp_raise_OSError(errno);
@@ -132,7 +126,6 @@ mp_import_stat_t native_vfs_import_stat(fs_user_mount_t *vfs, const char *path) 
 	}
 
 	struct stat buf;
-	ESP_LOGD(TAG, "import_stat('%s')", path);
 	int res = stat(path, &buf);
 	if (res < 0) {
 		return MP_IMPORT_STAT_NO_EXIST;
@@ -143,4 +136,3 @@ mp_import_stat_t native_vfs_import_stat(fs_user_mount_t *vfs, const char *path) 
 	return MP_IMPORT_STAT_DIR;
 }
 
-#endif // MICROPY_VFS_NATIVE

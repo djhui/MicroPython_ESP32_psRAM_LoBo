@@ -48,7 +48,8 @@ This way many features not available in standard ESP32 MicroPython are enabled, 
 * **BUILD.sh** script is provided to make **building** MicroPython firmware as **easy** as possible
 * Internal filesystem is built with esp-idf **wear leveling** driver, so there is less danger of damaging the flash with frequent writes. File system parameters (start address, size, ...) can be set via **menuconfig**.
 * **sdcard** module is included which uses esp-idf **sdmmc** driver and can work in **1-bit** and **4-bit** modes. On ESP-WROVER-KIT it works without changes, for imformation on how to connect sdcard on other boards look at *components/micropython/esp32/modesp.c*
-* **Native ESP32 VFS** support for spi Flash & sdcard filesystems, MicroPythons's VFS can still be selected via **menuconfig**
+* **Native ESP32 VFS** support for spi Flash & sdcard filesystems.
+* **SPIFFS** filesystem support, can be used instead of FatFS in SPI Flash. Configurable via **menuconfig**
 * **RTC Class** is added to machine module, including methods for synchronization of system time to **ntp** server, **deepsleep**, **wakeup** from deepsleep **on external pin** level, ...
 * **Time zone** can be configured via **menuconfig** and is used when syncronizing time from NTP server
 * Files **timestamp** is correctly set to system time both on internal fat filesysten and on sdcard
@@ -110,12 +111,49 @@ Usage:
 * **./BUILD.sh flash**         - flash MicroPython firmware to ESP32
 * **./BUILD.sh erase**         - erase the whole ESP32 Flash
 * **./BUILD.sh monitor**       - run esp-idf terminal program
+* **./BUILD.sh makefs**        - create SPIFFS file system image which can be flashed to ESP32
+* **./BUILD.sh flashfs**       - flash SPIFFS file system image to ESP32, if not created, create it first
+* **./BUILD.sh copyfs**        - flash the default SPIFFS file system image to ESP32
 
 As default the build process runs silently, without showing compiler output. You can change that by commenting **> /dev/null 2>&1** in the lines with **make** command.
 
 **To build with psRAM support add** *psram* **as the last parameter.**
 
 After the successful build the firmware files will be placed into **firmware** directory. **flash.sh** script will also be created.
+
+---
+
+
+#### Using **SPIFFS** filesystem
+
+**SPIFFS** filesystem can be used on internal spi Flash instead of **FatFS**.
+
+If you want to use it configure it via menuconfig**  *→ MicroPython → File systems → Use SPIFFS*
+
+**Prepared** image file can be flashed to ESP32, if not flashed, filesystem will be formated after first boot.
+
+
+SFPIFFS **image** can be **prepared** on host and flashed to ESP32:
+
+Copy the files to be included on spiffs into **components/spiffs_image/image/** directory. Subdirectories can also be added.
+
+Execute:
+
+`./BUILD.sh makefs`
+
+to create **spiffs image** in **build** directory **without flashing** to ESP32
+
+Execute:
+
+`./BUILD.sh flashfs`
+
+to create **spiffs image** in **build** directory and **flash** it to ESP32
+
+Execute:
+
+`./BUILD.sh copyfs`
+
+to **flash default spiffs image** *components/spiffs_image/spiffs_image.img* to ESP32
 
 ---
 

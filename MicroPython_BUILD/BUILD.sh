@@ -25,16 +25,16 @@ buildType="esp2"
 
 if [ "${opt:0:2}" == "-j" ]; then
     opt2="$2"
-    if [ "${opt2}" == "" ]; then
-        opt2="all"
-    fi
     if [ "${opt2}" == "psram" ]; then
         opt2="all"
         buildType="psram"
     fi
-    if [ "${opt2}" != "flash" ] && [ "${opt2}" != "erase" ] && [ "${opt2}" != "monitor" ] && [ "${opt2}" != "clean" ] && [ "${opt2}" != "all" ] && [ "${opt2}" != "menuconfig" ]; then
+    if [ "${opt2}" == "" ]; then
+        opt2="all"
+    fi
+    if [ "${opt2}" != "flash" ] && [ "${opt2}" != "all" ]; then
         echo ""
-        echo "Wrong parameter, usage: BUILD.sh [all] | clean | flash | erase | monitor | menuconfig"
+        echo "Wrong parameter, usage: BUILD.sh -jN [all] | flash"
         echo ""
         exit 1
     else
@@ -43,6 +43,11 @@ if [ "${opt:0:2}" == "-j" ]; then
             buildType="psram"
         fi
     fi
+
+elif [ "${opt}" == "makefs" ] || [ "${opt}" == "flashfs" ] || [ "${opt}" == "copyfs" ]; then
+    arg=${opt}
+    opt=""
+    
 else
     if [ "${opt}" == "" ]; then
         opt="all"
@@ -112,8 +117,8 @@ export CROSS_COMPILE=xtensa-esp32-elf-
 
 
 # Test if mpy-cross has to be buildType
-# ----------------------------------------------------------------------------------------------------------------------
-if [ "${arg}" != "flash" ] && [ "${arg}" != "erase" ] && [ "${arg}" != "monitor" ] && [ "${arg}" != "menuconfig" ]; then
+# ----------------------------
+if [ "${arg}" == "all" ]; then
     # ###########################################################################
     # Build MicroPython cross compiler which compiles .py scripts into .mpy files
     # ###########################################################################
@@ -133,8 +138,29 @@ if [ "${arg}" != "flash" ] && [ "${arg}" != "erase" ] && [ "${arg}" != "monitor"
     # #########################################
 fi
 
+# ----------------------------------------------------------------------------------------
+if [ "${arg}" == "makefs" ] || [ "${arg}" == "flashfs" ] || [ "${arg}" == "copyfs" ]; then
+    # ###########################################################################
+    # Build mkspiffs program which creates spiffs image from directory
+    # ###########################################################################
+    if [ ! -f "components/mkspiffs/src/mkspiffs" ]; then
+        echo "=================="
+        echo "Building mkspiffs"
+        make -C components/mkspiffs/src > /dev/null 2>&1
+        if [ $? -eq 0 ]; then
+            echo "OK."
+            echo "=================="
+        else
+            echo "FAILED"
+            echo "=================="
+            exit 1
+        fi
+    fi
+    # #########################################
+fi
+
 # #### Test sdkconfig ###############
-if [ "${arg}" != "flash" ] && [ "${arg}" != "erase" ] && [ "${arg}" != "monitor" ] && [ "${arg}" != "menuconfig" ]; then
+if [ "${arg}" == "all" ] || [ "${arg}" == "clean" ]; then
     # Test if sdkconfig exists
     # ---------------------------
     if [ ! -f "sdkconfig" ]; then
@@ -171,31 +197,46 @@ if [ "${arg}" == "flash" ]; then
     echo "Flashing MicroPython firmware to ESP32..."
     echo "========================================="
 
-    make  ${opt} ${arg}
+    make ${opt} ${arg}
 elif [ "${arg}" == "erase" ]; then
     echo "======================"
     echo "Erasing ESP32 Flash..."
     echo "======================"
 
-    make  ${opt} ${arg}
+    make erase_flash
 elif [ "${arg}" == "monitor" ]; then
     echo "============================"
     echo "Executing esp-idf monitor..."
     echo "============================"
 
-    make  ${opt} ${arg}
+    make monitor
 elif [ "${arg}" == "clean" ]; then
     echo "============================="
     echo "Cleaning MicroPython build..."
     echo "============================="
 
     if [ "${MP_SHOW_PROGRESS}" == "yes" ]; then
-        make  ${opt} ${arg}
+        make clean
     else
-        make  ${opt} ${arg} > /dev/null 2>&1
+        make clean > /dev/null 2>&1
     fi
 elif [ "${arg}" == "menuconfig" ]; then
-    make  ${opt} ${arg}
+    make menuconfig
+elif [ "${arg}" == "makefs" ]; then
+    echo "========================"
+    echo "Creating SPIFFS image..."
+    echo "========================"
+    make makefs
+elif [ "${arg}" == "flashfs" ]; then
+    echo "================================="
+    echo "Flashing SPIFFS image to ESP32..."
+    echo "================================="
+    make flashfs
+elif [ "${arg}" == "copyfs" ]; then
+    echo "========================================="
+    echo "Flashing default SPIFFS image to ESP32..."
+    echo "========================================="
+    make copyfs
 else
     echo "================================"
     echo "Building MicroPython firmware..."
@@ -235,7 +276,7 @@ if [ $? -eq 0 ]; then
     fi
     echo ""
 else
-    echo "Build FAILED!"
+    echo "'make ${arg}' FAILED!"
     echo ""
     exit 1
 fi

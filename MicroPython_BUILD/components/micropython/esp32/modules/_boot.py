@@ -2,18 +2,9 @@ import gc
 import uos
 
 try:
-    if uos.vfstype() == 1:
-        # Using ESP32 native VFS
-        uos.mount(uos.VfsNative(0), '/flash')
-        uos.chdir('/flash')
-    else:
-        # Using MicroPython VFS
-        from flashbdev import bdev
-        if bdev:
-            uos.mount(bdev, '/')
+    uos.mount(uos.VfsNative(0), '/flash')
+    uos.chdir('flash')
 except OSError:
-    if uos.vfstype() == 0:
-        import inisetup
-        vfs = inisetup.setup()
+    print("Error mounting internal file system")
 
 gc.collect()

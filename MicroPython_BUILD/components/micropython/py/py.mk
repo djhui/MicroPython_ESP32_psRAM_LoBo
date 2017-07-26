@@ -198,19 +198,9 @@ PY_O_BASENAME = \
 	../extmod/uos_dupterm.o \
 	../lib/embed/abort_.o \
 	../lib/utils/printf.o \
-
-ifeq ($(MICROPY_PY_USE_NATIVE_VFS),1)
-PY_O_BASENAME += \
 	../extmod/vfs_native.o \
 	../extmod/vfs_native_file.o \
 	../extmod/vfs_native_misc.o
-else
-PY_O_BASENAME += \
-	../extmod/vfs_fat.o \
-	../extmod/vfs_fat_diskio.o \
-	../extmod/vfs_fat_file.o \
-	../extmod/vfs_fat_misc.o
-endif
 
 # prepend the build destination prefix to the py object files
 PY_O = $(addprefix $(PY_BUILD)/, $(PY_O_BASENAME))

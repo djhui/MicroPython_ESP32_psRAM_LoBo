@@ -53,15 +53,9 @@
 #define MICROPY_USE_INTERNAL_PRINTF         (0) // ESP32 SDK requires its own printf
 #define MICROPY_ENABLE_SCHEDULER            (1)
 #define MICROPY_SCHEDULER_DEPTH             (8)
-#define MICROPY_VFS                         (1)
 
-#ifdef CONFIG_MICROPY_USE_NATIVE_VFS
-#define MICROPY_VFS_NATIVE                  (1)
-#define MICROPY_VFS_FAT                     (0)
-#else
-#define MICROPY_VFS_FAT                     (1)
-#define MICROPY_VFS_NATIVE                  (0)
-#endif
+#define MICROPY_VFS                         (1) // !! DO NOT CHANGE, MUST BE 1 !!
+#define MICROPY_VFS_FAT                     (0) // !! DO NOT CHANGE, NOT USED  !!
 
 // control over Python builtins
 #define MICROPY_PY_FUNCTION_ATTRS           (1)
@@ -172,13 +166,8 @@
 #define MICROPY_FATFS_MAX_LFN               (CONFIG_FATFS_MAX_LFN)  // Get from config
 #define MICROPY_FATFS_LFN_CODE_PAGE         (CONFIG_FATFS_CODEPAGE) // Get from config
 
-#if defined(MICROPY_VFS_FAT)
- #define mp_type_fileio                      fatfs_type_fileio
- #define mp_type_textio                      fatfs_type_textio
-#elif defined(MICROPY_VFS_NATIVE)
- #define mp_type_fileio                      nativefs_type_fileio
- #define mp_type_textio                      nativefs_type_textio
-#endif
+#define mp_type_fileio                      nativefs_type_fileio
+#define mp_type_textio                      nativefs_type_textio
 
 // internal flash file system configuration
 #define MICROPY_INTERNALFS_START            (CONFIG_MICROPY_INTERNALFS_START)       // filesystem start Flash address
@@ -187,6 +176,12 @@
 #define MICROPY_INTERNALFS_ENCRIPTED        (1)                                     // use encription on filesystem (UNTESTED!)
 #else
 #define MICROPY_INTERNALFS_ENCRIPTED        (0)                                     // do not use encription on filesystem
+#endif
+
+#if defined(CONFIG_MICROPY_USE_SPIFFS)
+#define MICROPY_USE_SPIFFS					(1)						// use spiffs instead of FatFS on spi Flash
+#else
+#define MICROPY_USE_SPIFFS					(0)
 #endif
 
 // === sdcard using ESP32 sdmmc driver configuration ===
