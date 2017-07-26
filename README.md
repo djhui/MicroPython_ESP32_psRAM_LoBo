@@ -115,7 +115,7 @@ Usage:
 * **./BUILD.sh flashfs**       - flash SPIFFS file system image to ESP32, if not created, create it first
 * **./BUILD.sh copyfs**        - flash the default SPIFFS file system image to ESP32
 
-As default the build process runs silently, without showing compiler output. You can change that by commenting **> /dev/null 2>&1** in the lines with **make** command.
+As default the build process runs silently, without showing compiler output. You can change that by exporting variable **MP_SHOW_PROGRESS=yes** before executing *BUILD.sh*.
 
 **To build with psRAM support add** *psram* **as the last parameter.**
 
@@ -128,7 +128,7 @@ After the successful build the firmware files will be placed into **firmware** d
 
 **SPIFFS** filesystem can be used on internal spi Flash instead of **FatFS**.
 
-If you want to use it configure it via menuconfig**  *→ MicroPython → File systems → Use SPIFFS*
+If you want to use it configure it via **menuconfig**  *→ MicroPython → File systems → Use SPIFFS*
 
 **Prepared** image file can be flashed to ESP32, if not flashed, filesystem will be formated after first boot.
 
