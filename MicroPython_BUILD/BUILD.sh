@@ -70,8 +70,55 @@ fi
 #---------------------------------------------------------------------------------------------------------------------
 
 
-
 BUILD_BASE_DIR=${PWD}
+
+# Test if mpy-cross has to be buildType
+# ----------------------------
+if [ "${arg}" == "all" ]; then
+    # ###########################################################################
+    # Build MicroPython cross compiler which compiles .py scripts into .mpy files
+    # ###########################################################################
+    if [ ! -f "components/micropython/mpy-cross/mpy-cross" ]; then
+        cd components/mpy_cross_build/mpy-cross
+        echo "=================="
+        echo "Building mpy-cross"
+        make #> /dev/null 2>&1
+        if [ $? -eq 0 ]; then
+            cp -f mpy-cross ../../micropython/mpy-cross #> /dev/null 2>&1
+            make clean > /dev/null 2>&1
+            echo "OK."
+            echo "=================="
+        else
+            echo "FAILED"
+            echo "=================="
+            exit 1
+        fi
+        cd ${BUILD_BASE_DIR}
+    fi
+    # ###########################################################################
+fi
+
+# ----------------------------------------------------------------------------------------
+if [ "${arg}" == "makefs" ] || [ "${arg}" == "flashfs" ] || [ "${arg}" == "copyfs" ]; then
+    # ###########################################################################
+    # Build mkspiffs program which creates spiffs image from directory
+    # ###########################################################################
+    if [ ! -f "components/mkspiffs/src/mkspiffs" ]; then
+        echo "=================="
+        echo "Building mkspiffs"
+        make -C components/mkspiffs/src > /dev/null 2>&1
+        if [ $? -eq 0 ]; then
+            echo "OK."
+            echo "=================="
+        else
+            echo "FAILED"
+            echo "=================="
+            exit 1
+        fi
+    fi
+    # ###########################################################################
+fi
+
 
 # ########################################################
 # #              SET XTENSA & ESP-IDF PATHS              #
@@ -115,49 +162,6 @@ export CROSS_COMPILE=xtensa-esp32-elf-
 # ########################################################
 
 
-
-# Test if mpy-cross has to be buildType
-# ----------------------------
-if [ "${arg}" == "all" ]; then
-    # ###########################################################################
-    # Build MicroPython cross compiler which compiles .py scripts into .mpy files
-    # ###########################################################################
-    if [ ! -f "components/micropython/mpy-cross/mpy-cross" ]; then
-        echo "=================="
-        echo "Building mpy-cross"
-        make -C components/micropython/mpy-cross > /dev/null 2>&1
-        if [ $? -eq 0 ]; then
-            echo "OK."
-            echo "=================="
-        else
-            echo "FAILED"
-            echo "=================="
-            exit 1
-        fi
-    fi
-    # #########################################
-fi
-
-# ----------------------------------------------------------------------------------------
-if [ "${arg}" == "makefs" ] || [ "${arg}" == "flashfs" ] || [ "${arg}" == "copyfs" ]; then
-    # ###########################################################################
-    # Build mkspiffs program which creates spiffs image from directory
-    # ###########################################################################
-    if [ ! -f "components/mkspiffs/src/mkspiffs" ]; then
-        echo "=================="
-        echo "Building mkspiffs"
-        make -C components/mkspiffs/src > /dev/null 2>&1
-        if [ $? -eq 0 ]; then
-            echo "OK."
-            echo "=================="
-        else
-            echo "FAILED"
-            echo "=================="
-            exit 1
-        fi
-    fi
-    # #########################################
-fi
 
 # #### Test sdkconfig ###############
 if [ "${arg}" == "all" ] || [ "${arg}" == "clean" ]; then
@@ -215,6 +219,9 @@ elif [ "${arg}" == "clean" ]; then
     echo "Cleaning MicroPython build..."
     echo "============================="
 
+    rm -f components/micropython/mpy-cross/mpy-cross > /dev/null 2>&1
+    rm -f components/mkspiffs/src/*.o > /dev/null 2>&1
+    rm -f components/mkspiffs/src/spiffs/*.o > /dev/null 2>&1
     if [ "${MP_SHOW_PROGRESS}" == "yes" ]; then
         make clean
     else

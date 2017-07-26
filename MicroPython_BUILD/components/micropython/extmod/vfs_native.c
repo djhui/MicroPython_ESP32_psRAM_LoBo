@@ -164,7 +164,7 @@ const char *mkabspath(fs_user_mount_t *vfs, const char *path, char *absbuf, int 
 		return absbuf;
 	}
 
-	int len,  f = 0;
+	int len;
 	char buf[strlen(cwd) + 16];
 
 	if (vfs->device == VFS_NATIVE_TYPE_SDCARD) {
