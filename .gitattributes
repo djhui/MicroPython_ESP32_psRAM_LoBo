@@ -1,3 +1,0 @@
-xtensa-esp32-elf_psram/libexec/gcc/xtensa-esp32-elf/5.2.0/cc1 filter=lfs diff=lfs merge=lfs -text
-xtensa-esp32-elf_psram/libexec/gcc/xtensa-esp32-elf/5.2.0/cc1plus filter=lfs diff=lfs merge=lfs -text
-xtensa-esp32-elf_psram/libexec/gcc/xtensa-esp32-elf/5.2.0/lto1 filter=lfs diff=lfs merge=lfs -text
