@@ -72,7 +72,7 @@ fi
 
 BUILD_BASE_DIR=${PWD}
 
-# Test if mpy-cross has to be buildType
+# Test if mpy-cross has to be build
 # ----------------------------
 if [ "${arg}" == "all" ]; then
     # ###########################################################################
@@ -82,9 +82,9 @@ if [ "${arg}" == "all" ]; then
         cd components/mpy_cross_build/mpy-cross
         echo "=================="
         echo "Building mpy-cross"
-        make #> /dev/null 2>&1
+        make > /dev/null 2>&1
         if [ $? -eq 0 ]; then
-            cp -f mpy-cross ../../micropython/mpy-cross #> /dev/null 2>&1
+            cp -f mpy-cross ../../micropython/mpy-cross > /dev/null 2>&1
             make clean > /dev/null 2>&1
             echo "OK."
             echo "=================="
