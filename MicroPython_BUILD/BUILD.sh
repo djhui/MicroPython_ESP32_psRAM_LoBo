@@ -72,6 +72,45 @@ fi
 
 BUILD_BASE_DIR=${PWD}
 
+# Test if toolchains are unpacked
+# #########################################################
+cd ..
+if [ ! -d "esp-idf" ]; then
+    echo "unpacking 'esp-idf'"
+    tar -xf esp-idf.tar.xz> /dev/null 2>&1
+    if [ $? -ne 0 ]; then
+        echo "unpacking 'esp-idf' FAILED"
+        exit 1
+    fi
+fi
+if [ ! -d "esp-idf_psram" ]; then
+    echo "unpacking 'esp-idf_psram'"
+    tar -xf esp-idf_psram.tar.xz> /dev/null 2>&1
+    if [ $? -ne 0 ]; then
+        echo "unpacking 'esp-idf_psram' FAILED"
+        exit 1
+    fi
+fi
+if [ ! -d "xtensa-esp32-elf" ]; then
+    echo "unpacking 'xtensa-esp32-elf'"
+    tar -xf xtensa-esp32-elf.tar.xz> /dev/null 2>&1
+    if [ $? -ne 0 ]; then
+        echo "unpacking 'xtensa-esp32-elf' FAILED"
+        exit 1
+    fi
+fi
+if [ ! -d "xtensa-esp32-elf_psram" ]; then
+    echo "unpacking 'xtensa-esp32-elf_psram'"
+    tar -xf xtensa-esp32-elf_psram.tar.xz> /dev/null 2>&1
+    if [ $? -ne 0 ]; then
+        echo "unpacking 'xtensa-esp32-elf_psram' FAILED"
+        exit 1
+    fi
+fi
+cd ${BUILD_BASE_DIR}
+# #########################################################
+
+
 # Test if mpy-cross has to be build
 # ----------------------------
 if [ "${arg}" == "all" ]; then
