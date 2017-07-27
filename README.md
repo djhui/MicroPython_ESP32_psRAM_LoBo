@@ -47,7 +47,7 @@ This way many features not available in standard ESP32 MicroPython are enabled, 
 * ESP32 Flash can be configured in any mode, **QIO**, **QOUT**, **DIO**, **DOUT**
 * **BUILD.sh** script is provided to make **building** MicroPython firmware as **easy** as possible
 * Internal filesystem is built with esp-idf **wear leveling** driver, so there is less danger of damaging the flash with frequent writes. File system parameters (start address, size, ...) can be set via **menuconfig**.
-* **sdcard** module is included which uses esp-idf **sdmmc** driver and can work in **1-bit** and **4-bit** modes. On ESP-WROVER-KIT it works without changes, for imformation on how to connect sdcard on other boards look at *components/micropython/esp32/modesp.c*
+* **sdcard** module is included which uses esp-idf **sdmmc** driver and can work in **SD mode** (*1-bit* and *4-bit*) or in **SPI mode** (sd card can be connected to any pins). SPI mode cannot be selected if building with psRAM. On ESP-WROVER-KIT it works without changes, for imformation on how to connect sdcard on other boards look at *components/micropython/esp32/modesp.c*
 * **Native ESP32 VFS** support for spi Flash & sdcard filesystems.
 * **SPIFFS** filesystem support, can be used instead of FatFS in SPI Flash. Configurable via **menuconfig**
 * **RTC Class** is added to machine module, including methods for synchronization of system time to **ntp** server, **deepsleep**, **wakeup** from deepsleep **on external pin** level, ...

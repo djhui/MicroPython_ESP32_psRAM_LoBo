@@ -1,0 +1,58 @@
+#
+# "main" pseudo-component makefile.
+#
+# (Uses default behaviour of compiling all source files in directory, adding 'include' to include path.)
+
+
+COMPONENT_ADD_INCLUDEDIRS := .  genhdr py esp32 lib lib/utils lib/mp-readline extmod extmod/crypto-algorithms lib/netutils drivers/dht lib/timeutils  lib/berkeley-db-1.xx/include lib/berkeley-db-1.xx/btree lib/berkeley-db-1.xx/db lib/berkeley-db-1.xx/hash lib/berkeley-db-1.xx/man lib/berkeley-db-1.xx/mpool lib/berkeley-db-1.xx/recno ../spiffs
+COMPONENT_PRIV_INCLUDEDIRS := .  genhdr py esp32 lib
+
+BUILD = $(BUILD_DIR_BASE)
+
+COMPONENT_OWNCLEANTARGET := clean
+
+include $(COMPONENT_PATH)/py/mkenv.mk
+
+# qstr definitions (must come before including py.mk)
+QSTR_DEFS = $(COMPONENT_PATH)/esp32/qstrdefsport.h
+
+MICROPY_PY_USSL = 0
+MICROPY_SSL_AXTLS = 0
+ifdef CONFIG_MICROPY_PY_BTREE
+MICROPY_PY_BTREE = 1
+else
+MICROPY_PY_BTREE = 0
+endif
+
+MICROPY_FATFS = 0
+
+FROZEN_DIR = $(COMPONENT_PATH)/esp32/scripts
+FROZEN_MPY_DIR = $(COMPONENT_PATH)/esp32/modules
+
+ESPCOMP = $(IDF_PATH)/components
+
+# CPP macro
+# ------------
+CPP = $(CC) -E
+# ------------
+
+include $(COMPONENT_PATH)/esp32/esp.mk
+
+# include py core make definitions
+# --------------------------------
+include $(COMPONENT_PATH)/py/py.mk
+
+CFLAGS += $(CFLAGS_MOD)
+
+# List of sources for qstr extraction
+# ------------------------------------------------------------------------------
+SRC_QSTR += $(SRC_C) $(EXTMOD_SRC_C) $(LIB_SRC_C) $(DRIVERS_SRC_C) $(LIBS_SRC_C)
+# Append any auto-generated sources that are needed by sources listed in SRC_QSTR
+SRC_QSTR_AUTO_DEPS +=
+
+# Needed to generate Qstr
+OBJ = $(OBJ_MP) $(OBJ_ESPIDF)
+
+# Include mkrules make
+#--------------------------------------
+include $(COMPONENT_PATH)/py/mkrules.mk

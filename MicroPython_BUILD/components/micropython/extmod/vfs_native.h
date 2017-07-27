@@ -33,6 +33,44 @@
  *
  */
 
+// ======== CD Card support ===========================================================================
+
+/*
+ * Using SDCard with sdmmc driver connection:
+
+ESP32 pin     | SD card pin    | SPI pin | Notes
+--------------|----------------|---------|------------
+              |      SD    uSD |         |
+--------------|----------------|---------|------------
+GPIO14 (MTMS) | CLK  5     5   | SCK     | 10k pullup in SD mode
+GPIO15 (MTDO) | CMD  2     3   | MOSI    | 10k pullup, both in SD and SPI modes
+GPIO2         | D0   7     7   | MISO    | 10k pullup in SD mode, pull low to go into download mode (see note below!)
+GPIO4         | D1   8     8   | N/C     | not used in 1-line SD mode; 10k pullup in 4-line SD mode
+GPIO12 (MTDI) | D2   9     1   | N/C     | not used in 1-line SD mode; 10k pullup in 4-line SD mode (see note below!)
+GPIO13 (MTCK) | D3   1     2   | CS      | not used in 1-line SD mode, but card's D3 pin must have a 10k pullup
+N/C           | CD             |         | optional, not used
+N/C           | WP             |         | optional, not used
+VDD     3.3V  | VSS  4      4  |
+GND     GND   | GND  3&6    6  |
+
+SDcard pinout                 uSDcard pinout
+                 Contacts view
+ _________________             1 2 3 4 5 6 7 8
+|                 |            _______________
+|                 |           |# # # # # # # #|
+|                 |           |               |
+|                 |           |               |
+|                 |           /               |
+|                 |          /                |
+|                 |         |_                |
+|                 |           |               |
+|                #|          /                |
+|# # # # # # # # /          |                 |
+|_______________/           |                 |
+ 8 7 6 5 4 3 2 1 9          |_________________|
+
+ */
+
 #include "py/lexer.h"
 #include "py/obj.h"
 #include "py/objint.h"
@@ -52,7 +90,6 @@
 typedef struct _fs_user_mount_t {
     mp_obj_base_t base;
     mp_int_t device;
-    mp_int_t mode;
 } fs_user_mount_t;
 
 extern const mp_obj_type_t mp_native_vfs_type;

@@ -43,10 +43,16 @@
 
 #include "esp_vfs.h"
 #include "esp_vfs_fat.h"
+#include "driver/sdmmc_host.h"
+#ifndef CONFIG_MEMMAP_SPIRAM_ENABLE
+#include "driver/sdspi_host.h"
+#endif
+#include "sdmmc_cmd.h"
 #include "esp_system.h"
 #include "esp_log.h"
 #include "spiffs_vfs.h"
-#include "modesp.h"
+#include "driver/sdmmc_types.h"
+#include "driver/sdmmc_defs.h";
 #include "diskio.h"
 #include <fcntl.h>
 #include "diskio_spiflash.h"
@@ -58,6 +64,16 @@
 #include "lib/timeutils/timeutils.h"
 #include "sdkconfig.h"
 
+
+// esp32 partition configuration needed for wear leveling driver
+const esp_partition_t fs_part = {
+    ESP_PARTITION_TYPE_DATA,        //type
+    ESP_PARTITION_SUBTYPE_DATA_FAT, //subtype
+    MICROPY_INTERNALFS_START,       // address (from mpconfigport.h)
+    MICROPY_INTERNALFS_SIZE,        // size (from mpconfigport.h)
+    "uPYpart",                      // label
+    MICROPY_INTERNALFS_ENCRIPTED    // encrypted (from mpconfigport.h)
+};
 
 STATIC const byte fresult_to_errno_table[20] = {
     [FR_OK] = 0,
@@ -249,12 +265,6 @@ STATIC mp_obj_t native_vfs_make_new(const mp_obj_type_t *type, size_t n_args, si
 	fs_user_mount_t *vfs = m_new_obj(fs_user_mount_t);
 	vfs->base.type = type;
 	vfs->device = mp_obj_get_int(args[0]);
-	if (vfs->device == VFS_NATIVE_TYPE_SDCARD) {
-		vfs->mode = mp_obj_get_int(args[1]);
-	}
-	else {
-		vfs->mode = 0;
-	}
 
 	return MP_OBJ_FROM_PTR(vfs);
 }
@@ -650,6 +660,34 @@ STATIC void cleckBoot_py()
     }
 }
 
+//---------------------------------------------------------------
+STATIC void sdcard_print_info(const sdmmc_card_t* card, int mode)
+{
+    #if MICROPY_SDMMC_SHOW_INFO
+	printf("---------------------\n");
+	if (mode == 1) {
+        printf(" Mode: SPI\n");
+    }
+	else if (mode == 2) {
+        printf(" Mode:  SD (1bit)\n");
+    }
+	else if (mode == 3) {
+        printf(" Mode:  SD (4bit)\n");
+    }
+	else if (mode == 3) {
+        printf(" Mode:  Unknown\n");
+    }
+    printf(" Name: %s\n", card->cid.name);
+    printf(" Type: %s\n", (card->ocr & SD_OCR_SDHC_CAP)?"SDHC/SDXC":"SDSC");
+    printf("Speed: %s (%d MHz)\n", (card->csd.tr_speed > 25000000)?"high speed":"default speed", card->csd.tr_speed/1000000);
+    printf(" Size: %u MB\n", (uint32_t)(((uint64_t) card->csd.capacity) * card->csd.sector_size / (1024 * 1024)));
+    printf("  CSD: ver=%d, sector_size=%d, capacity=%d read_bl_len=%d\n",
+            card->csd.csd_ver,
+            card->csd.sector_size, card->csd.capacity, card->csd.read_block_len);
+    printf("  SCR: sd_spec=%d, bus_width=%d\n\n", card->scr.sd_spec, card->scr.bus_width);
+    #endif
+}
+
 //------------------------------------------------------------------------------------
 STATIC mp_obj_t native_vfs_mount(mp_obj_t self_in, mp_obj_t readonly, mp_obj_t mkfs) {
 	fs_user_mount_t *self = MP_OBJ_TO_PTR(self_in);
@@ -696,32 +734,48 @@ STATIC mp_obj_t native_vfs_mount(mp_obj_t self_in, mp_obj_t readonly, mp_obj_t m
 		#endif
 	}
 	else if (self->device == VFS_NATIVE_TYPE_SDCARD) {
+	    mp_int_t card_mode = 3;
+
 	    // Configure sdmmc interface
-	    sdmmc_host_t host = SDMMC_HOST_DEFAULT();
-	    sdmmc_slot_config_t slot_config = SDMMC_SLOT_CONFIG_DEFAULT();
-
-	    // Enable pull-ups on the SD card pins
-	    // ** It is recommended to use external 10K pull-ups **
-	    gpio_set_pull_mode(2, GPIO_PULLUP_ONLY);
-	    gpio_set_pull_mode(14, GPIO_PULLUP_ONLY);
-	    gpio_set_pull_mode(15, GPIO_PULLUP_ONLY);
-
-		if (self->mode == 1) {
-	        // Use 1-line SD mode
-	        host.flags = SDMMC_HOST_FLAG_1BIT;
-	        slot_config.width = 1;
-	    }
-	    else {
-	        gpio_set_pull_mode(4, GPIO_PULLUP_ONLY);
-	        gpio_set_pull_mode(12, GPIO_PULLUP_ONLY);
-	        gpio_set_pull_mode(13, GPIO_PULLUP_ONLY);
-	    }
+		#ifdef CONFIG_SDCARD_MODE1
+			sdmmc_host_t host = SDSPI_HOST_DEFAULT();
+			sdspi_slot_config_t slot_config = SDSPI_SLOT_CONFIG_DEFAULT();
+		    gpio_set_pull_mode(CONFIG_SDCARD_MISO, GPIO_PULLUP_ONLY);
+		    gpio_set_pull_mode(CONFIG_SDCARD_CLK, GPIO_PULLUP_ONLY);
+		    gpio_set_pull_mode(CONFIG_SDCARD_MOSI, GPIO_PULLUP_ONLY);
+		    slot_config.gpio_miso = CONFIG_SDCARD_MISO;
+		    slot_config.gpio_mosi = CONFIG_SDCARD_MOSI;
+		    slot_config.gpio_sck  = CONFIG_SDCARD_CLK;
+		    slot_config.gpio_cs   = CONFIG_SDCARD_CS;
+		    card_mode = 1;
+		#else
+			sdmmc_host_t host = SDMMC_HOST_DEFAULT();
+			sdmmc_slot_config_t slot_config = SDMMC_SLOT_CONFIG_DEFAULT();
+			#ifdef CONFIG_SDCARD_MODE2
+		        // Use 1-line SD mode
+			    gpio_set_pull_mode(2, GPIO_PULLUP_ONLY);
+			    gpio_set_pull_mode(14, GPIO_PULLUP_ONLY);
+			    gpio_set_pull_mode(15, GPIO_PULLUP_ONLY);
+		        host.flags = SDMMC_HOST_FLAG_1BIT;
+		        slot_config.width = 1;
+			    card_mode = 2;
+			#else
+		        gpio_set_pull_mode(2, GPIO_PULLUP_ONLY);
+		        gpio_set_pull_mode(14, GPIO_PULLUP_ONLY);
+		        gpio_set_pull_mode(15, GPIO_PULLUP_ONLY);
+		        gpio_set_pull_mode(4, GPIO_PULLUP_ONLY);
+		        gpio_set_pull_mode(12, GPIO_PULLUP_ONLY);
+		        gpio_set_pull_mode(13, GPIO_PULLUP_ONLY);
+			    card_mode = 3;
+			#endif
+		#endif
 
 		esp_vfs_fat_sdmmc_mount_config_t mount_config = {
 	        .format_if_mount_failed = false,
 	        .max_files = CONFIG_MICROPY_FATFS_MAX_OPEN_FILES
 	    };
 
+	    //esp_err_t ret = esp_vfs_fat_sdmmc_mount(VFS_NATIVE_SDCARD_MOUNT_POINT, &host, &slot_config, &mount_config, &sdmmc_card);
 	    esp_err_t ret = esp_vfs_fat_sdmmc_mount(VFS_NATIVE_SDCARD_MOUNT_POINT, &host, &slot_config, &mount_config, &sdmmc_card);
 	    if (ret != ESP_OK) {
 	        if (ret == ESP_FAIL) {
@@ -732,7 +786,7 @@ STATIC mp_obj_t native_vfs_mount(mp_obj_t self_in, mp_obj_t readonly, mp_obj_t m
 			mp_raise_OSError(MP_EIO);
 	    }
 		ESP_LOGV(TAG, "SDCard FATFS mounted.");
-        sdcard_print_info(sdmmc_card, self->mode);
+        sdcard_print_info(sdmmc_card, card_mode);
 		native_vfs_mounted[self->device] = true;
 	}
 

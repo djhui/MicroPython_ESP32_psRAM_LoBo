@@ -20,27 +20,27 @@ endif
 # can be located. By following this scheme, it allows a single build rule
 # to be used to compile all .c files.
 
-vpath %.S . $(TOP)
-$(BUILD)/%.o: %.S
-	$(ECHO) "CC $<"
-	$(Q)$(CC) $(CFLAGS) -c -o $@ $<
+#vpath %.S . $(TOP)
+#$(BUILD)/%.o: %.S
+#	$(ECHO) "_CC $<"
+#	$(Q)$(CC) $(CFLAGS) -c -o $@ $<
 
-vpath %.s . $(TOP)
-$(BUILD)/%.o: %.s
-	$(ECHO) "AS $<"
-	$(Q)$(AS) -o $@ $<
+#vpath %.s . $(TOP)
+#$(BUILD)/%.o: %.s
+#	$(ECHO) "_AS $<"
+#	$(Q)$(AS) -o $@ $<
 
 
 define compile_c
-$(ECHO) "CC $<"
+$(ECHO) "_CC_ $<"
 $(Q)$(CC) -I$(MP_EXTRA_INC) $(CFLAGS) -c -MD -o $@ $<
-@# The following fixes the dependency file.
-@# See http://make.paulandlesley.org/autodep.html for details.
-@# Regex adjusted from the above to play better with Windows paths, etc.
-@# @$(CP) $(@:.o=.d) $(@:.o=.P); \
-@#   $(SED) -e 's/#.*//' -e 's/^.*:  *//' -e 's/ *\\$$//' \
-@#       -e '/^$$/ d' -e 's/$$/ :/' < $(@:.o=.d) >> $(@:.o=.P); \
-@#   $(RM) -f $(@:.o=.d)
+#@ The following fixes the dependency file.
+#@ See http://make.paulandlesley.org/autodep.html for details.
+#@ Regex adjusted from the above to play better with Windows paths, etc.
+#@ @$(CP) $(@:.o=.d) $(@:.o=.P); \
+#@   $(SED) -e 's/#.*//' -e 's/^.*:  *//' -e 's/ *\\$$//' \
+#@       -e '/^$$/ d' -e 's/$$/ :/' < $(@:.o=.d) >> $(@:.o=.P); \
+#@   $(RM) -f $(@:.o=.d)
 endef
 
 vpath %.c . $(TOP)
@@ -56,9 +56,9 @@ QSTR_GEN_EXTRA_CFLAGS += -I$(MP_EXTRA_INC)
 
 vpath %.c . $(TOP)
 
-$(BUILD)/%.pp: %.c
-	$(ECHO) "PreProcess $<"
-	$(Q)$(CC) $(CFLAGS) -E -Wp,-C,-dD,-dI -o $@ $<
+#$(BUILD)/%.pp: %.c
+#	$(ECHO) "PreProcess $<"
+#	$(Q)$(CC) $(CFLAGS) -E -Wp,-C,-dD,-dI -o $@ $<
 
 # The following rule uses | to create an order only prerequisite. Order only
 # prerequisites only get built if they don't exist. They don't cause timestamp
@@ -72,16 +72,16 @@ $(BUILD)/%.pp: %.c
 $(OBJ): | $(HEADER_BUILD)/qstrdefs.generated.h $(HEADER_BUILD)/mpversion.h
 
 $(HEADER_BUILD)/qstr.i.last: $(SRC_QSTR) | $(HEADER_BUILD)/mpversion.h
-	$(ECHO) "GEN $@"
+	$(ECHO) "GENlast $@"
 	$(Q)$(CPP) $(QSTR_GEN_EXTRA_CFLAGS) $(CFLAGS) $(if $?,$?,$^) >$(HEADER_BUILD)/qstr.i.last;
 
 $(HEADER_BUILD)/qstr.split: $(HEADER_BUILD)/qstr.i.last
-	$(ECHO) "GEN $@"
+	$(ECHO) "GENsplit $@"
 	$(Q)$(PYTHON) $(PY_SRC)/makeqstrdefs.py split $(HEADER_BUILD)/qstr.i.last $(HEADER_BUILD)/qstr $(QSTR_DEFS_COLLECTED)
 	$(Q)touch $@
 
 $(QSTR_DEFS_COLLECTED): $(HEADER_BUILD)/qstr.split
-	$(ECHO) "GEN $@"
+	$(ECHO) "GENcol $@"
 	$(Q)$(PYTHON) $(PY_SRC)/makeqstrdefs.py cat $(HEADER_BUILD)/qstr.i.last $(HEADER_BUILD)/qstr $(QSTR_DEFS_COLLECTED)
 
 # $(sort $(var)) removes duplicates
@@ -124,28 +124,6 @@ $(BUILD)/frozen_mpy.c: $(FROZEN_MPY_MPY_FILES) $(BUILD)/genhdr/qstrdefs.generate
 	$(Q)$(PYTHON) $(MPY_TOOL) -f -q $(BUILD)/genhdr/qstrdefs.preprocessed.h $(FROZEN_MPY_MPY_FILES) > $@
 endif
 
-ifneq ($(PROG),)
-# Build a standalone executable (unix does this)
-
-all: $(PROG)
-
-$(PROG): $(OBJ)
-	$(ECHO) "LINK $@"
-# Do not pass COPT here - it's *C* compiler optimizations. For example,
-# we may want to compile using Thumb, but link with non-Thumb libc.
-	$(Q)$(CC) -o $@ $^ $(LIB) $(LDFLAGS)
-ifndef DEBUG
-	$(Q)$(STRIP) $(STRIPFLAGS_EXTRA) $(PROG)
-endif
-	$(Q)$(SIZE) $(PROG)
-
-clean: clean-prog
-clean-prog:
-	$(RM) -f $(PROG)
-	$(RM) -f $(PROG).map
-
-.PHONY: clean-prog
-endif
 
 LIBMICROPYTHON = libmicropython.a
 

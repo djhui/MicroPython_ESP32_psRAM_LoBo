@@ -51,6 +51,11 @@ elif [ "${opt}" == "makefs" ] || [ "${opt}" == "flashfs" ] || [ "${opt}" == "cop
 else
     if [ "${opt}" == "" ]; then
         opt="all"
+        arg="all"
+    fi
+    if [ "${opt}" != "psram" ]; then
+        opt="all"
+        buildType="psram"
     fi
     if [ "${opt}" != "flash" ] && [ "${opt}" != "erase" ] && [ "${opt}" != "monitor" ] && [ "${opt}" != "clean" ] && [ "${opt}" != "all" ] && [ "${opt}" != "menuconfig" ]; then
         echo ""
@@ -77,7 +82,7 @@ BUILD_BASE_DIR=${PWD}
 cd ..
 if [ ! -d "esp-idf" ]; then
     echo "unpacking 'esp-idf'"
-    tar -xf esp-idf.tar.xz> /dev/null 2>&1
+    tar -xf esp-idf.tar.xz > /dev/null 2>&1
     if [ $? -ne 0 ]; then
         echo "unpacking 'esp-idf' FAILED"
         exit 1
@@ -85,7 +90,7 @@ if [ ! -d "esp-idf" ]; then
 fi
 if [ ! -d "esp-idf_psram" ]; then
     echo "unpacking 'esp-idf_psram'"
-    tar -xf esp-idf_psram.tar.xz> /dev/null 2>&1
+    tar -xf esp-idf_psram.tar.xz > /dev/null 2>&1
     if [ $? -ne 0 ]; then
         echo "unpacking 'esp-idf_psram' FAILED"
         exit 1
@@ -93,7 +98,7 @@ if [ ! -d "esp-idf_psram" ]; then
 fi
 if [ ! -d "xtensa-esp32-elf" ]; then
     echo "unpacking 'xtensa-esp32-elf'"
-    tar -xf xtensa-esp32-elf.tar.xz> /dev/null 2>&1
+    tar -xf xtensa-esp32-elf.tar.xz > /dev/null 2>&1
     if [ $? -ne 0 ]; then
         echo "unpacking 'xtensa-esp32-elf' FAILED"
         exit 1
@@ -101,7 +106,7 @@ if [ ! -d "xtensa-esp32-elf" ]; then
 fi
 if [ ! -d "xtensa-esp32-elf_psram" ]; then
     echo "unpacking 'xtensa-esp32-elf_psram'"
-    tar -xf xtensa-esp32-elf_psram.tar.xz> /dev/null 2>&1
+    tar -xf xtensa-esp32-elf_psram.tar.xz > /dev/null 2>&1
     if [ $? -ne 0 ]; then
         echo "unpacking 'xtensa-esp32-elf_psram' FAILED"
         exit 1
@@ -112,8 +117,8 @@ cd ${BUILD_BASE_DIR}
 
 
 # Test if mpy-cross has to be build
-# ----------------------------
-if [ "${arg}" == "all" ]; then
+# -------------------------------------------------------
+if [ "${arg}" == "all" ] || [ "${arg}" == "flash" ]; then
     # ###########################################################################
     # Build MicroPython cross compiler which compiles .py scripts into .mpy files
     # ###########################################################################
@@ -137,6 +142,7 @@ if [ "${arg}" == "all" ]; then
     # ###########################################################################
 fi
 
+# Test if mkspiffs has to be build
 # ----------------------------------------------------------------------------------------
 if [ "${arg}" == "makefs" ] || [ "${arg}" == "flashfs" ] || [ "${arg}" == "copyfs" ]; then
     # ###########################################################################
@@ -179,6 +185,7 @@ else
     export PATH=${PWD}/xtensa-esp32-elf/bin:$PATH
     # Export esp-idf path
     export IDF_PATH=${PWD}/esp-idf
+    #export IDF_PATH=/home/LoBo2_Razno/ESP32/esp-idf
 
     # ############################################################
     # !PUT HERE THE REAL PATHS TO YOUR XTENSA TOOLCHAIN & ESP-IDF!
@@ -201,7 +208,7 @@ export CROSS_COMPILE=xtensa-esp32-elf-
 # ########################################################
 
 
-
+# Test if valid sdkconfig exists
 # #### Test sdkconfig ###############
 if [ "${arg}" == "all" ] || [ "${arg}" == "clean" ]; then
     # Test if sdkconfig exists
@@ -304,7 +311,7 @@ if [ $? -eq 0 ]; then
             cp -f build/partitions_singleapp.bin firmware/esp32_psram > /dev/null 2>&1
             cp -f sdkconfig firmware/esp32_psram > /dev/null 2>&1
             echo "#!/bin/bash" > firmware/esp32_psram/flash.sh
-            make print_flash_cmd >> firmware/esp32_psram/flash.sh
+            make print_flash_cmd >> firmware/esp32_psram/flash.sh 2>/dev/null
             chmod +x firmware/esp32_psram/flash.sh > /dev/null 2>&1
         else
             cp -f build/MicroPython.bin firmware/esp32 > /dev/null 2>&1
@@ -312,7 +319,7 @@ if [ $? -eq 0 ]; then
             cp -f build/partitions_singleapp.bin firmware/esp32 > /dev/null 2>&1
             cp -f sdkconfig firmware/esp32 > /dev/null 2>&1
             echo "#!/bin/bash" > firmware/esp32/flash.sh
-            make print_flash_cmd >> firmware/esp32/flash.sh
+            make print_flash_cmd >> firmware/esp32/flash.sh 2>/dev/null
             chmod +x firmware/esp32/flash.sh > /dev/null 2>&1
         fi
         echo "Build complete."

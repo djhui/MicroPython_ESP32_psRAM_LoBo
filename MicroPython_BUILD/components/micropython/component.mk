@@ -80,7 +80,7 @@ MP_EXTRA_INC += -I$(ESPCOMP)/ethernet/include
 MP_EXTRA_INC += -I$(ESPCOMP)/app_trace/include
 MP_EXTRA_INC += -I$(ESPCOMP)/sdmmc/include
 MP_EXTRA_INC += -I$(ESPCOMP)/fatfs/src
-
+MP_EXTRA_INC += -I$(ESPCOMP)/heap/include
 
 # CPP macro
 # ------------
@@ -107,7 +107,7 @@ MP_CLEAN_EXTRA += $(COMPONENT_PATH)/genhdr/qstrdefs.generated.h
 # --------------------------------
 include $(COMPONENT_PATH)/py/py.mk
 
-CFLAGS += -std=gnu99
+#CFLAGS += -std=gnu99
 CFLAGS += $(CFLAGS_MOD)
 
 

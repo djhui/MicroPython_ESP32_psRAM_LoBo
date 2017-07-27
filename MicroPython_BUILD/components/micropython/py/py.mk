@@ -17,7 +17,7 @@ endif
 CSUPEROPT = -O3
 
 # this sets the config file for FatFs
-CFLAGS_MOD += -DFFCONF_H=\"lib/oofatfs/ffconf.h\"
+#CFLAGS_MOD += -DFFCONF_H=\"lib/oofatfs/ffconf.h\"
 
 ifeq ($(MICROPY_PY_USSL),1)
 CFLAGS_MOD += -DMICROPY_PY_USSL=1
@@ -236,7 +236,7 @@ MPCONFIGPORT_MK = $(wildcard mpconfigport.mk)
 # Note: we need to protect the qstr names from the preprocessor, so we wrap
 # the lines in "" and then unwrap after the preprocessor is finished.
 $(HEADER_BUILD)/qstrdefs.generated.h: $(PY_QSTR_DEFS) $(QSTR_DEFS) $(QSTR_DEFS_COLLECTED) $(PY_SRC)/makeqstrdata.py $(COMPONENT_PATH)/esp32/mpconfigport.h $(MPCONFIGPORT_MK) $(PY_SRC)/mpconfig.h | $(HEADER_BUILD)
-	$(ECHO) "GEN $@"
+	$(ECHO) "GENgen $@"
 	$(Q)cat $(PY_QSTR_DEFS) $(QSTR_DEFS) $(QSTR_DEFS_COLLECTED) | $(SED) 's/^Q(.*)/"&"/' | $(CC) -E -I$(MP_EXTRA_INC) $(CFLAGS) - | $(SED) 's/^"\(Q(.*)\)"/\1/' > $(HEADER_BUILD)/qstrdefs.preprocessed.h
 	$(Q)$(PYTHON) $(PY_SRC)/makeqstrdata.py $(HEADER_BUILD)/qstrdefs.preprocessed.h > $@
 	$(Q)cp $(HEADER_BUILD)/qstrdefs.generated.h $(COMPONENT_PATH)/genhdr

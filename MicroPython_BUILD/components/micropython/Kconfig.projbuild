@@ -114,5 +114,61 @@ menu "MicroPython"
             default y
             help
             Show info after initializing SD card or SPIFFS
+
+    endmenu
+
+    menu "Configure SD Card"
+		config SDCARD_MODE
+		    int
+		    default 1 if SDCARD_MODE1
+		    default 2 if SDCARD_MODE2
+		    default 3 if SDCARD_MODE3
+		
+			choice
+			    prompt "SD Card mode"
+			    default SDCARD_MODE3
+			    help
+			        Select SD Card operating mode
+			
+			    config SDCARD_MODE1
+			        bool "SPI Mode"
+			        depends on !MEMMAP_SPIRAM_ENABLE 
+			    config SDCARD_MODE2
+			        bool "1-line SD Mode" 
+			    config SDCARD_MODE3
+			        bool "4-line SD Mode" 
+			endchoice
+
+        config SDCARD_CLK
+            int "CLK pin"
+            depends on SDCARD_MODE1
+            range 1 32
+            default 14
+            help
+            Pin used as SPI CLK
+
+        config SDCARD_MOSI
+            int "MOSI pin"
+            depends on SDCARD_MODE1
+            range 1 32
+            default 15
+            help
+            Pin used as SPI MOSI
+
+        config SDCARD_MISO
+            int "MISO pin"
+            depends on SDCARD_MODE1
+            range 1 32
+            default 2
+            help
+            Pin used as SPI MISO
+
+        config SDCARD_CS
+            int "CS pin"
+            depends on SDCARD_MODE1
+            range 1 32
+            default 13
+            help
+            Pin used as SPI CS
     endmenu
 endmenu

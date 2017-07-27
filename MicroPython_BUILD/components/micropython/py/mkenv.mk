@@ -45,18 +45,19 @@ SED = sed
 PYTHON = python
 
 AS = $(CROSS_COMPILE)as
-CC = $(CROSS_COMPILE)gcc
-CXX = $(CROSS_COMPILE)g++
-LD = $(CROSS_COMPILE)ld
-OBJCOPY = $(CROSS_COMPILE)objcopy
-SIZE = $(CROSS_COMPILE)size
+#CC = $(CROSS_COMPILE)gcc
+#CXX = $(CROSS_COMPILE)g++
+#LD = $(CROSS_COMPILE)ld
+#OBJCOPY = $(CROSS_COMPILE)objcopy
+#SIZE = $(CROSS_COMPILE)size
 STRIP = $(CROSS_COMPILE)strip
-AR = $(CROSS_COMPILE)ar
-ifeq ($(MICROPY_FORCE_32BIT),1)
-CC += -m32
-CXX += -m32
-LD += -m32
-endif
+#AR = $(CROSS_COMPILE)ar
+
+#ifeq ($(MICROPY_FORCE_32BIT),1)
+#CC += -m32
+#CXX += -m32
+#LD += -m32
+#endif
 
 MAKE_FROZEN = $(TOP)/tools/make-frozen.py
 MPY_CROSS = $(TOP)/mpy-cross/mpy-cross
