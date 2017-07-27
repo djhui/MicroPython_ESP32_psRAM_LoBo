@@ -70,11 +70,13 @@ Clone this repository, as it uses some submodules, use --recursive option
 git clone --recursive https://github.com/loboris/MicroPython_ESP32_psRAM_LoBo.git
 ```
 
+*Toolchains and esp-idf are provided as tar archives. They will be automatically unpacked on* **first run** *of* **BUILD.sh** *script*
+
 **Goto MicroPython_BUILD directory**
 
 ---
 
-To change some ESP32 & Micropython options run:
+To change some ESP32 & Micropython options or to create initial **sdkconfig** run:
 ```
 ./BUILD.sh menuconfig
 ```
@@ -198,19 +200,16 @@ machine.wake_description()
 
 Using sdcard module:
 ```
-import sdcard, uos, esp
+import sdcard, uos
 
-sd = sdcard.SDCard(esp.SD_1LINE)
-vfs = uos.VfsFat(sd)
-uos.mount(vfs, '/sd')
-uos.chdir('/sd')
-uos.listdir()
+sd = sdcard.SDCard()
+uos.listdir(/sd)
 ```
 
-Using sdcard module with automount:
+Working directory can be changed to root of the sd card automatically:
 ```
->>> import sdcard,esp,uos
->>> sd = sdcard.SDCard(esp.SD_4LINE, True)
+>>> import sdcard,uos
+>>> sd = sdcard.SDCard(True)
 ---------------------
 Initializing SD Card: OK.
 ---------------------
