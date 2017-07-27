@@ -53,7 +53,7 @@ else
         opt="all"
         arg="all"
     fi
-    if [ "${opt}" != "psram" ]; then
+    if [ "${opt}" == "psram" ]; then
         opt="all"
         buildType="psram"
     fi
