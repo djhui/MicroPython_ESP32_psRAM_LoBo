@@ -53,6 +53,7 @@ This way many features not available in standard ESP32 MicroPython are enabled, 
 * **RTC Class** is added to machine module, including methods for synchronization of system time to **ntp** server, **deepsleep**, **wakeup** from deepsleep **on external pin** level, ...
 * **Time zone** can be configured via **menuconfig** and is used when syncronizing time from NTP server
 * Files **timestamp** is correctly set to system time both on internal fat filesysten and on sdcard
+* Built-in **ymodem module** for fast transfer of text/binary files to/from host
 * Some additional frozen modules are added, like **pye** editor, **urequests**, **functools**, **logging**, ...
 * **Btree** module included, can be Enabled/Disabled via **menuconfig**
 * **Eclipse** project files included. To include it into Eclipse goto File->Import->Existing Projects into Workspace->Select root directory->[select *MicroPython_BUILD* directory]->Finish. **Rebuild index**.

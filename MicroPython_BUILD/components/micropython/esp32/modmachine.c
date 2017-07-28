@@ -189,24 +189,6 @@ STATIC mp_obj_t machine_wake_desc (void) {
 STATIC MP_DEFINE_CONST_FUN_OBJ_0(machine_wake_desc_obj, machine_wake_desc);
 
 
-//-----------------------------------------
-STATIC mp_obj_t machine_stdin_take (void) {
-	xSemaphoreTake(uart0_mutex, UART_SEMAPHORE_WAIT);
-	uart0_raw_input = 1;
-
-    return mp_const_none;
-}
-STATIC MP_DEFINE_CONST_FUN_OBJ_0(machine_stdin_take_obj, machine_stdin_take);
-
-//-----------------------------------------
-STATIC mp_obj_t machine_stdin_give (void) {
-	uart0_raw_input = 0;
-	xSemaphoreGive(uart0_mutex);
-
-    return mp_const_none;
-}
-STATIC MP_DEFINE_CONST_FUN_OBJ_0(machine_stdin_give_obj, machine_stdin_give);
-
 //-----------------------------------------------------------------------
 STATIC mp_obj_t machine_stdin_get (mp_obj_t sz_in, mp_obj_t timeout_in) {
     mp_int_t timeout = mp_obj_get_int(timeout_in);
@@ -221,6 +203,8 @@ STATIC mp_obj_t machine_stdin_get (mp_obj_t sz_in, mp_obj_t timeout_in) {
 
     vstr_init_len(&vstr, sz);
 
+	xSemaphoreTake(uart0_mutex, UART_SEMAPHORE_WAIT);
+	uart0_raw_input = 1;
     while (tmo < timeout) {
     	c = ringbuf_get(&stdin_ringbuf);
         if (c != -1) {
@@ -232,7 +216,10 @@ STATIC mp_obj_t machine_stdin_get (mp_obj_t sz_in, mp_obj_t timeout_in) {
 		vTaskDelay(10 / portTICK_PERIOD_MS); // wait 10 ms
     	tmo += 10;
     }
-    if (tmo >= timeout) {
+	uart0_raw_input = 0;
+	xSemaphoreGive(uart0_mutex);
+
+	if (tmo >= timeout) {
         return mp_const_none;
     }
     return mp_obj_new_str_from_vstr(&mp_type_str, &vstr);;
@@ -246,10 +233,14 @@ STATIC mp_obj_t machine_stdout_put (mp_obj_t buf_in) {
     mp_int_t len = bufinfo.len;
     char *buf = bufinfo.buf;
 
+	xSemaphoreTake(uart0_mutex, UART_SEMAPHORE_WAIT);
+	uart0_raw_input = 1;
     while (len--) {
         //mp_hal_stdout_tx_char(*buf++);
         uart_tx_one_char(*buf++);
     }
+	uart0_raw_input = 0;
+	xSemaphoreGive(uart0_mutex);
 
     return mp_obj_new_int_from_uint(bufinfo.len);
 }
@@ -274,8 +265,6 @@ STATIC const mp_rom_map_elem_t machine_module_globals_table[] = {
     { MP_OBJ_NEW_QSTR(MP_QSTR_wake_description), MP_ROM_PTR(&machine_wake_desc_obj) },
     { MP_ROM_QSTR(MP_QSTR_free_heap), MP_ROM_PTR(&machine_free_heap_obj) },
 
-    { MP_ROM_QSTR(MP_QSTR_stdin_take), MP_ROM_PTR(&machine_stdin_take_obj) },
-    { MP_ROM_QSTR(MP_QSTR_stdin_give), MP_ROM_PTR(&machine_stdin_give_obj) },
 	{ MP_ROM_QSTR(MP_QSTR_stdin_get), MP_ROM_PTR(&machine_stdin_get_obj) },
 	{ MP_ROM_QSTR(MP_QSTR_stdout_put), MP_ROM_PTR(&machine_stdout_put_obj) },
 

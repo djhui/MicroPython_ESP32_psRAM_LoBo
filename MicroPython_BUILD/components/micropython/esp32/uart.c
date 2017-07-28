@@ -29,6 +29,7 @@
 #include <stdio.h>
 
 #include "driver/uart.h"
+#include "uart.h"
 
 #include "py/mpstate.h"
 #include "py/mphal.h"

@@ -141,6 +141,7 @@ SRC_C =  $(addprefix esp32/,\
 	mpthreadport.c \
 	mpsleep.c \
 	machrtc.c \
+	modymodem.c \
 	)
 
 EXTMOD_SRC_C = $(addprefix extmod/,\

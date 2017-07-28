@@ -28,6 +28,9 @@
 #ifndef MICROPY_INCLUDED_ESP32_UART_H
 #define MICROPY_INCLUDED_ESP32_UART_H
 
+#include "freertos/FreeRTOS.h"
+#include "freertos/queue.h"
+
 #define UART_SEMAPHORE_WAIT 1800000	// time to wait for mutex in milliseconds
 
 QueueHandle_t uart0_mutex;

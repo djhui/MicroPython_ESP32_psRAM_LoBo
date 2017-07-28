@@ -34,9 +34,10 @@ menu "MicroPython"
     config MICROPY_RX_BUFFER_SIZE
         int "RX buffer size"
         range 256 4096
-        default 256
+        default 1080
         help
         Set the size of the stdin RX buffer in bytes
+        Minimum of 1080 bytes must be set if you want to use YModem module
 
     config MICROPY_STACK_SIZE
         int "MicroPython stack size (KB)"

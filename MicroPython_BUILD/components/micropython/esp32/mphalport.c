@@ -59,7 +59,9 @@ int mp_hal_stdin_rx_chr(void) {
 }
 
 void mp_hal_stdout_tx_char(char c) {
+	xSemaphoreTake(uart0_mutex, UART_SEMAPHORE_WAIT);
     uart_tx_one_char(c);
+	xSemaphoreGive(uart0_mutex);
     //mp_uos_dupterm_tx_strn(&c, 1);
 }
 
