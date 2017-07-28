@@ -671,12 +671,20 @@ STATIC mp_obj_t ymodem_recv(mp_obj_t fname_in)
     }
 
     // find on which device is the file
-    if (strstr(cwd, VFS_NATIVE_MOUNT_POINT) != NULL) sprintf(fullname, "%s/", VFS_NATIVE_MOUNT_POINT);
-    else if (strstr(cwd, VFS_NATIVE_SDCARD_MOUNT_POINT) != NULL) sprintf(fullname, "%s/", VFS_NATIVE_SDCARD_MOUNT_POINT);
+    if (strstr(cwd, VFS_NATIVE_MOUNT_POINT) != NULL) {
+    	sprintf(fullname, "%s/", VFS_NATIVE_MOUNT_POINT);
+    	pcwd = strstr(cwd, VFS_NATIVE_MOUNT_POINT) + strlen(VFS_NATIVE_MOUNT_POINT) + 1;
+    }
+    else if (strstr(cwd, VFS_NATIVE_SDCARD_MOUNT_POINT) != NULL) {
+    	sprintf(fullname, "%s/", VFS_NATIVE_SDCARD_MOUNT_POINT);
+    	pcwd = strstr(cwd, VFS_NATIVE_SDCARD_MOUNT_POINT) + strlen(VFS_NATIVE_SDCARD_MOUNT_POINT) + 1;
+    }
     else {
     	sprintf(err_msg, "File not on known file system");
 		goto exit;
     }
+    strcat(fullname, pcwd);
+    if (fullname[strlen(fullname)-1] != '/') strcat(fullname, "/");
     strcat(fullname, fname);
 
 	// Open the file
@@ -707,7 +715,7 @@ STATIC mp_obj_t ymodem_recv(mp_obj_t fname_in)
 	}
 
 exit:
-	printf("\n%s%s\n", err_msg, ((err == 0) ? "" : "Error: "));
+	printf("\n%s%s\n", ((err == 0) ? "" : "Error: "), err_msg);
 	return mp_const_none;
 #else
 	printf("Minimum stdin RX buffer size is 1080 bytes, please rebuild.\n");
@@ -739,12 +747,20 @@ STATIC mp_obj_t ymodem_send(mp_obj_t fname_in)
     }
 
     // find on which device is the file
-    if (strstr(cwd, VFS_NATIVE_MOUNT_POINT) != NULL) sprintf(fullname, "%s/", VFS_NATIVE_MOUNT_POINT);
-    else if (strstr(cwd, VFS_NATIVE_SDCARD_MOUNT_POINT) != NULL) sprintf(fullname, "%s/", VFS_NATIVE_SDCARD_MOUNT_POINT);
+    if (strstr(cwd, VFS_NATIVE_MOUNT_POINT) != NULL) {
+    	sprintf(fullname, "%s/", VFS_NATIVE_MOUNT_POINT);
+    	pcwd = strstr(cwd, VFS_NATIVE_MOUNT_POINT) + strlen(VFS_NATIVE_MOUNT_POINT) + 1;
+    }
+    else if (strstr(cwd, VFS_NATIVE_SDCARD_MOUNT_POINT) != NULL) {
+    	sprintf(fullname, "%s/", VFS_NATIVE_SDCARD_MOUNT_POINT);
+    	pcwd = strstr(cwd, VFS_NATIVE_SDCARD_MOUNT_POINT) + strlen(VFS_NATIVE_SDCARD_MOUNT_POINT) + 1;
+    }
     else {
     	sprintf(err_msg, "File not on known file system");
 		goto exit;
     }
+    strcat(fullname, pcwd);
+    if (fullname[strlen(fullname)-1] != '/') strcat(fullname, "/");
     strcat(fullname, fname);
 
     // Get file size
@@ -780,7 +796,7 @@ STATIC mp_obj_t ymodem_send(mp_obj_t fname_in)
 	else sprintf(err_msg, "Opening file \"%s\" for reading.", fname);
 
 exit:
-	printf("\n%s%s\n", err_msg, ((err == 0) ? "" : "Error: "));
+printf("\n%s%s\n", ((err == 0) ? "" : "Error: "), err_msg);
 	return mp_const_none;
 #else
 	printf("Minimum stdin RX buffer size is 1080 bytes, please rebuild.\n");
