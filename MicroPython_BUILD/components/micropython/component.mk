@@ -11,6 +11,10 @@ BUILD = $(BUILD_DIR_BASE)
 
 COMPONENT_OWNCLEANTARGET := clean
 
+ifneq ($(wildcard $(IDF_PATH)/components/heap/.*),)
+CFLAGS += -DIDF_USEHEAP=1
+endif
+
 
 include $(COMPONENT_PATH)/py/mkenv.mk
 
@@ -34,7 +38,7 @@ FROZEN_MPY_DIR = $(COMPONENT_PATH)/esp32/modules
 #---------------------------------
 ESPCOMP = $(IDF_PATH)/components
 MP_EXTRA_INC += -I.
-MP_EXTRA_INC += -I$(PROJECT_PATH)/main
+#MP_EXTRA_INC += -I$(PROJECT_PATH)/main
 MP_EXTRA_INC += -I$(COMPONENT_PATH)
 MP_EXTRA_INC += -I$(PROJECT_PATH)/components/spiffs
 MP_EXTRA_INC += -I$(COMPONENT_PATH)/py
@@ -116,6 +120,7 @@ CFLAGS += $(CFLAGS_MOD)
 # for Qstr generation
 # -------------------------------------------
 SRC_C =  $(addprefix esp32/,\
+	main.c \
 	uart.c \
 	gccollect.c \
 	mphalport.c \

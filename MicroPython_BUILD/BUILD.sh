@@ -46,26 +46,28 @@ if [ "${opt:0:2}" == "-j" ]; then
 
 elif [ "${opt}" == "makefs" ] || [ "${opt}" == "flashfs" ] || [ "${opt}" == "copyfs" ]; then
     arg=${opt}
-    opt=""
+    opt="none"
+    if [ "$2" == "psram" ]; then
+        buildType="psram"
+    fi
     
 else
     if [ "${opt}" == "" ]; then
         opt="all"
         arg="all"
-    fi
-    if [ "${opt}" == "psram" ]; then
+    elif [ "${opt}" == "psram" ]; then
         opt="all"
         buildType="psram"
-    fi
-    if [ "${opt}" != "flash" ] && [ "${opt}" != "erase" ] && [ "${opt}" != "monitor" ] && [ "${opt}" != "clean" ] && [ "${opt}" != "all" ] && [ "${opt}" != "menuconfig" ]; then
+    elif [ "${opt}" == "flash" ] || [ "${opt}" == "erase" ] || [ "${opt}" == "monitor" ] || [ "${opt}" == "clean" ] || [ "${opt}" == "all" ] || [ "${opt}" == "menuconfig" ]; then
+        opt=""
+        if [ "$2" == "psram" ]; then
+            buildType="psram"
+        fi
+    else
         echo ""
         echo "Wrong parameter, usage: BUILD.sh [all] | clean | flash | erase | monitor | menuconfig"
-        exit 1
         echo ""
-    fi
-    opt=""
-    if [ "$2" == "psram" ]; then
-        buildType="psram"
+        exit 1
     fi
 fi
 
@@ -181,20 +183,23 @@ if [ "${buildType}" == "psram" ]; then
     echo ""
 else
     cd ../
-    # Add Xtensa toolchain path to system path
-    export PATH=${PWD}/xtensa-esp32-elf/bin:$PATH
-    # Export esp-idf path
-    export IDF_PATH=${PWD}/esp-idf
-    #export IDF_PATH=/home/LoBo2_Razno/ESP32/esp-idf
 
+    # Add Xtensa toolchain path to system path, and export path to esp-idf
+
+    # #####################################################################
+    # For non-psRAM builds, master or release branch of esp-idf can be used
+    #                       standard extenssa ESP32 toolchain can be used
+    # ---------------------------------------------------------------------
+    # export YOUR OWN PATHS, or use included
+    # ---------------------------------------------------------------------
+    #
+    #export PATH=<path_to_my_xtensa_tooolchain>/xtensa-esp32-elf/bin:$PATH
+    #export IDF_PATH=<path_to_my_esp-idf>/esp-idf
+    #
     # ############################################################
-    # !PUT HERE THE REAL PATHS TO YOUR XTENSA TOOLCHAIN & ESP-IDF!
-    # vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
-    #export PATH=$PATH:/home/LoBo2_Razno/ESP32/xtensa-esp32-elf/bin
-    #export IDF_PATH=/home/LoBo2_Razno/ESP32/esp-idf_mpy
-    # ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-    # fcdc5ccdfac927f7ba919c661519de70d44c3493  11/07 last working
-    # ############################################################
+
+    export PATH=${PWD}/xtensa-esp32-elf/bin:$PATH
+    export IDF_PATH=${PWD}/esp-idf
 
     cd ${BUILD_BASE_DIR}
     echo ""
@@ -265,7 +270,8 @@ elif [ "${arg}" == "clean" ]; then
     echo "Cleaning MicroPython build..."
     echo "============================="
 
-    rm -f components/micropython/mpy-cross/mpy-cross > /dev/null 2>&1
+    #rm -f components/micropython/mpy-cross/mpy-cross > /dev/null 2>&1
+    rm -f build/* > /dev/null 2>&1
     rm -f components/mkspiffs/src/*.o > /dev/null 2>&1
     rm -f components/mkspiffs/src/spiffs/*.o > /dev/null 2>&1
     if [ "${MP_SHOW_PROGRESS}" == "yes" ]; then

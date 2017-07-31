@@ -28,7 +28,11 @@
 #include <stdint.h>
 #include <string.h>
 #include <stdbool.h>
+#ifdef IDF_USEHEAP
+#include "esp_heap_caps.h"
+#else
 #include "esp_heap_alloc_caps.h"
+#endif
 
 #include "py/runtime.h"
 #include "py/stream.h"
@@ -253,12 +257,20 @@ STATIC void machine_hw_spi_transfer(mp_obj_base_t *self_in, size_t len, const ui
         }
         transaction.flags |= (SPI_TRANS_USE_TXDATA | SPI_TRANS_USE_RXDATA);
     } else {
+		#ifdef IDF_USEHEAP
+        dsrc = heap_caps_malloc(len, MALLOC_CAP_DMA);
+		#else
         dsrc = pvPortMallocCaps(len, MALLOC_CAP_DMA);
+		#endif
         if (dsrc == NULL) {
             mp_raise_msg(&mp_type_OSError, "SPI transfer buffer allocation error");
             return;
         }
+		#ifdef IDF_USEHEAP
+        ddest = heap_caps_malloc(len, MALLOC_CAP_DMA);
+		#else
         ddest = pvPortMallocCaps(len, MALLOC_CAP_DMA);
+		#endif
         if (ddest == NULL) {
             free(dsrc);
             mp_raise_msg(&mp_type_OSError, "SPI transfer buffer allocation error");

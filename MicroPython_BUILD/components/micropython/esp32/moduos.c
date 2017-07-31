@@ -40,7 +40,7 @@
 #include "genhdr/mpversion.h"
 #include "extmod/vfs_native.h"
 
-extern const mp_obj_type_t mp_fat_vfs_type;
+//extern const mp_obj_type_t mp_fat_vfs_type;
 
 STATIC const qstr os_uname_info_fields[] = {
     MP_QSTR_sysname, MP_QSTR_nodename,
@@ -85,9 +85,11 @@ STATIC mp_obj_t os_urandom(mp_obj_t num) {
 STATIC MP_DEFINE_CONST_FUN_OBJ_1(os_urandom_obj, os_urandom);
 
 #if MICROPY_PY_OS_DUPTERM
+extern const mp_obj_type_t mp_uos_dupterm_obj;
+
 STATIC mp_obj_t os_dupterm_notify(mp_obj_t obj_in) {
     (void)obj_in;
-    mp_hal_signal_dupterm_input();
+    //mp_hal_signal_dupterm_input();
     return mp_const_none;
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_1(os_dupterm_notify_obj, os_dupterm_notify);

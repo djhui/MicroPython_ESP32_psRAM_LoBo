@@ -1,36 +1,48 @@
-import sys
+# ------------------------------------------------------------
+#        Developping with MicroPython in an async way
+#
+# ------------------------------------------------------------
+#                      === logging ===
+# ------------------------------------------------------------
+import utime as time
 
-CRITICAL = 50
-ERROR    = 40
-WARNING  = 30
-INFO     = 20
-DEBUG    = 10
-NOTSET   = 0
+ERROR    = const(5)
+WARNING  = const(4)
+INFO     = const(3)
+DEBUG    = const(2)
+TRACE    = const(1)
+NOTSET   = const(0)
 
-_level_dict = {
-    CRITICAL: "CRIT",
-    ERROR: "ERROR",
-    WARNING: "WARN",
-    INFO: "INFO",
-    DEBUG: "DEBUG",
-}
-
-_stream = sys.stderr
 
 class Logger:
 
+    level    = DEBUG
+    loggers  = {}
+    level2string = ["NOT_SET","TRACE","DEBUG","INFO","WARN","ERROR"]
+
+
+    def setLevel(self, level):
+        if level > ERROR:
+            level = ERROR
+        self.level = level
+
     def __init__(self, name):
-        self.level = NOTSET
+        self.level = DEBUG
         self.name = name
 
-    def _level_str(self, level):
-        if level in _level_dict:
-            return _level_dict[level]
-        return "LVL" + str(level)
 
     def log(self, level, msg, *args):
-        if level >= (self.level or _level):
-            print(("%s:%s:" + msg) % ((self._level_str(level), self.name) + args), file=_stream)
+        if level > ERROR:
+            level = ERROR
+
+        if level >= self.level and level >= Logger.level:
+            message = msg % args
+            now = time.ticks_ms() / 1000
+            print( ("%s:%s:%5.3f:%s" )%(Logger.level2string[level], self.name, now,message ))
+
+    def trace(self, msg, *args):
+        self.log(TRACE, msg, *args)
+
 
     def debug(self, msg, *args):
         self.log(DEBUG, msg, *args)
@@ -38,38 +50,18 @@ class Logger:
     def info(self, msg, *args):
         self.log(INFO, msg, *args)
 
-    def warning(self, msg, *args):
+    def warn(self, msg, *args):
         self.log(WARNING, msg, *args)
 
     def error(self, msg, *args):
         self.log(ERROR, msg, *args)
 
-    def critical(self, msg, *args):
-        self.log(CRITICAL, msg, *args)
+def setGlobal(level):
+    Logger.level = level
 
-
-_level = INFO
-_loggers = {}
-
-def getLogger(name):
-    if name in _loggers:
-        return _loggers[name]
+def getlogger(name):
+    if name in Logger.loggers:
+        return Logger.loggers[name]
     l = Logger(name)
-    _loggers[name] = l
+    Logger.loggers[name] = l
     return l
-
-def info(msg, *args):
-    getLogger(None).info(msg, *args)
-
-def debug(msg, *args):
-    getLogger(None).debug(msg, *args)
-
-def basicConfig(level=INFO, filename=None, stream=None, format=None):
-    global _level, _stream
-    _level = level
-    if stream:
-        _stream = stream
-    if filename is not None:
-        print("logging.basicConfig: filename arg is not supported")
-    if format is not None:
-        print("logging.basicConfig: format arg is not supported")

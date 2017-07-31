@@ -1,10 +1,20 @@
 /*
+ * This file is derived from the MicroPython project, http://micropython.org/
+ *
+ * Copyright (c) 2016, Pycom Limited and its licensors.
+ *
+ * This software is licensed under the GNU GPL version 3 or any later version,
+ * with permitted additional terms. For more information see the Pycom Licence
+ * v1.0 document supplied with this file, or available at:
+ * https://www.pycom.io/opensource/licensing
+ */
+
+/*
  * This file is part of the MicroPython project, http://micropython.org/
  *
  * The MIT License (MIT)
  *
  * Copyright (c) 2016 Damien P. George on behalf of Pycom Ltd
- * Copyright (c) 2017 Pycom Limited
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -25,24 +35,16 @@
  * THE SOFTWARE.
  */
 
-#include "stdio.h"
-#include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
-#include "esp_task.h"
+#include <stdio.h>
 
 #include "py/mpconfig.h"
+
+#if MICROPY_PY_THREAD
+
 #include "py/mpstate.h"
 #include "py/gc.h"
 #include "py/mpthread.h"
 #include "mpthreadport.h"
-
-#if MICROPY_PY_THREAD
-
-#define MP_THREAD_MIN_STACK_SIZE                        (4 * 1024)
-#define MP_THREAD_DEFAULT_STACK_SIZE                    (MP_THREAD_MIN_STACK_SIZE + 1024)
-#define MP_THREAD_PRIORITY                              (ESP_TASK_PRIO_MIN + 1)
-
-extern TaskHandle_t mp_task_handle;
 
 // this structure forms a linked list, one node per active thread
 typedef struct _thread_t {
@@ -60,9 +62,9 @@ STATIC mp_thread_mutex_t thread_mutex;
 STATIC thread_t thread_entry0;
 STATIC thread_t *thread; // root pointer, handled by mp_thread_gc_others
 
-void mp_thread_init(void *stack, uint32_t stack_len) {
+void mp_thread_preinit(void *stack, uint32_t stack_len) {
     mp_thread_set_state(&mp_state_ctx.thread);
-    // create the first entry in the linked list of all threads
+    // create first entry in linked list of all threads
     thread = &thread_entry0;
     thread->id = xTaskGetCurrentTaskHandle();
     thread->ready = 1;
@@ -70,6 +72,9 @@ void mp_thread_init(void *stack, uint32_t stack_len) {
     thread->stack = stack;
     thread->stack_len = stack_len;
     thread->next = NULL;
+}
+
+void mp_thread_init(void) {
     mp_thread_mutex_init(&thread_mutex);
 }
 
@@ -90,11 +95,11 @@ void mp_thread_gc_others(void) {
 }
 
 mp_state_thread_t *mp_thread_get_state(void) {
-    return pvTaskGetThreadLocalStoragePointer(mp_task_handle, 1);;
+    return pvTaskGetThreadLocalStoragePointer(NULL, 1);
 }
 
 void mp_thread_set_state(void *state) {
-    vTaskSetThreadLocalStoragePointer(mp_task_handle, 1, state);
+    vTaskSetThreadLocalStoragePointer(NULL, 1, state);
 }
 
 void mp_thread_start(void) {
@@ -126,6 +131,8 @@ void mp_thread_create_ex(void *(*entry)(void*), void *arg, size_t *stack_size, i
         *stack_size = MP_THREAD_DEFAULT_STACK_SIZE; // default stack size
     } else if (*stack_size < MP_THREAD_MIN_STACK_SIZE) {
         *stack_size = MP_THREAD_MIN_STACK_SIZE; // minimum stack size
+    } else if (*stack_size > MP_THREAD_MAX_STACK_SIZE) {
+        *stack_size = MP_THREAD_MAX_STACK_SIZE; // maximum stack size
     }
 
     // allocate TCB, stack and linked-list node (must be outside thread_mutex lock)
@@ -159,7 +166,7 @@ void mp_thread_create_ex(void *(*entry)(void*), void *arg, size_t *stack_size, i
 }
 
 void mp_thread_create(void *(*entry)(void*), void *arg, size_t *stack_size) {
-    mp_thread_create_ex(entry, arg, stack_size, MP_THREAD_PRIORITY, "mp_thread");
+    mp_thread_create_ex(entry, arg, stack_size, MP_THREAD_PRIORITY, "MPThread");
 }
 
 void mp_thread_finish(void) {
@@ -173,7 +180,7 @@ void mp_thread_finish(void) {
     mp_thread_mutex_unlock(&thread_mutex);
 }
 
-void vPortCleanUpTCB(void *tcb) {
+void vPortCleanUpTCB (void *tcb) {
     thread_t *prev = NULL;
     mp_thread_mutex_lock(&thread_mutex, 1);
     for (thread_t *th = thread; th != NULL; prev = th, th = th->next) {
@@ -185,7 +192,7 @@ void vPortCleanUpTCB(void *tcb) {
                 // move the start pointer
                 thread = th->next;
             }
-            // explicitly release all its memory
+            // explicitely release all its memory
             m_del(StaticTask_t, th->tcb, 1);
             m_del(StackType_t, th->stack, th->stack_len);
             m_del(thread_t, th, 1);
@@ -223,7 +230,8 @@ void mp_thread_deinit(void) {
 
 #else
 
-void vPortCleanUpTCB(void *tcb) {
+void vPortCleanUpTCB (void *tcb) {
+
 }
 
 #endif // MICROPY_PY_THREAD

@@ -17,7 +17,6 @@ Directory can be changed to SD card root automaticaly
     
 """
 
-import esp
 import uos
 
 class SDCard:

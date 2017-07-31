@@ -11,68 +11,110 @@ menu "MicroPython"
         help
         Hardware MCU mame
 
-    config MICROPY_PY_FRAMEBUF
-        bool "Enable framebuffer"
-        default y
-        help
-        Enable framebuffer support
-
-    config MICROPY_PY_BTREE
-        bool "Include Btree"
-        default n
-        help
-        Include Btree module into build
-
     config MICROPY_TIMEZONE
         string "Time zone"
         default "GMT0BST"
         help
         Set the time zone string used when updating the tome from NTP server
         You can use 'zones.csv' file to find the time zone string
-        Use the second entry for your Region/city
+        Use the second entry for your Region/city as the value set here
 
-    config MICROPY_RX_BUFFER_SIZE
-        int "RX buffer size"
-        range 256 4096
-        default 1080
-        help
-        Set the size of the stdin RX buffer in bytes
-        Minimum of 1080 bytes must be set if you want to use YModem module
+    menu "System settings"
+	    config MICROPY_TASK_PRIORITY
+	        int "Main task priority"
+	        range 1 20
+	        default 5
+	        help
+	        Set the priority of the main MicroPython task
+	
+	    config MICROPY_RX_BUFFER_SIZE
+	        int "RX buffer size"
+	        range 256 4096
+	        default 1080
+	        help
+	        Set the size of the stdin RX buffer in bytes
+	        Minimum of 1080 bytes must be set if you want to use YModem module
+	
+	    config MICROPY_STACK_SIZE
+	        int "MicroPython stack size (KB)"
+		   	depends on !MEMMAP_SPIRAM_ENABLE
+	        range 8 32
+	        default 16
+	        help
+	        Set the size of the MicroPython stack in Kbytes
+	
+	    config MICROPY_HEAP_SIZE
+	        int "MicroPython heap size (KB)"
+		   	depends on !MEMMAP_SPIRAM_ENABLE
+	        range 48 128
+	        default 92
+	        help
+	        Set the size of the MicroPython heap in Kbytes
+	
+	    config MICROPY_STACK_SIZE_PSRAM
+	        int "MicroPython stack size (KB)"
+		   	depends on MEMMAP_SPIRAM_ENABLE
+	        range 16 128
+	        default 32
+	        help
+	        Set the size of the MicroPython stack in Kbytes
+	        We are using psRAM and stack size can be set up to 128 KB
+	
+	    config MICROPY_HEAP_SIZE_PSRAM
+	        int "MicroPython heap size (KB)"
+		   	depends on MEMMAP_SPIRAM_ENABLE
+	        range 1024 4096
+	        default 4096
+	        help
+	        Set the size of the MicroPython heap in Kbytes
+	        The heap is placed on psRAM and and can be up to 4096 KB in size
+	
+	    config MICROPY_USE_THREADS
+	        bool "Use threads"
+	        default y
+	        help
+	        Use _thread module
+	
+	    config MICROPY_THREAD_PRIORITY
+	        int "Threads default priority"
+	        depends on MICROPY_USE_THREADS
+	        range 5 20
+	        default 4
+	        help
+	        Set the default priority of the MicroPython threads created using _thread module
+	
+	    config MICROPY_THREAD_STACK_SIZE
+	        int "Threads default stack size (KB)"
+	        depends on MICROPY_USE_THREADS
+	        range 5 32
+	        default 5
+	        help
+	        Set the default thread stack size
+	        5 KB is currently the minimum supported stack size value to guarantee
+	        sufficient stack space for the interpreter itself
+	
+    endmenu
 
-    config MICROPY_STACK_SIZE
-        int "MicroPython stack size (KB)"
-	   	depends on !MEMMAP_SPIRAM_ENABLE
-        range 8 32
-        default 16
-        help
-        Set the size of the MicroPython stack in Kbytes
-
-    config MICROPY_HEAP_SIZE
-        int "MicroPython heap size (KB)"
-	   	depends on !MEMMAP_SPIRAM_ENABLE
-        range 48 128
-        default 92
-        help
-        Set the size of the MicroPython heap in Kbytes
-
-    config MICROPY_STACK_SIZE_PSRAM
-        int "MicroPython stack size (KB)"
-	   	depends on MEMMAP_SPIRAM_ENABLE
-        range 16 128
-        default 64
-        help
-        Set the size of the MicroPython stack in Kbytes
-        We are using psRAM and stack size can be set up to 128 KB
-
-    config MICROPY_HEAP_SIZE_PSRAM
-        int "MicroPython heap size (KB)"
-	   	depends on MEMMAP_SPIRAM_ENABLE
-        range 1024 4096
-        default 4096
-        help
-        Set the size of the MicroPython heap in Kbytes
-        The heap is placed on psRAM and and can be up to 4096 KB in size
-
+    menu "Modules"
+	    config MICROPY_PY_FRAMEBUF
+	        bool "Enable framebuffer"
+	        default y
+	        help
+	        Include framebuffer module into build
+	
+	    config MICROPY_PY_BTREE
+	        bool "Include Btree"
+	        default n
+	        help
+	        Include Btree module into build
+	
+	    config MICROPY_USE_WEBSOCKETS
+	        bool "Use Websockets"
+	        default n
+	        help
+	        Include websockets module into build
+	
+	endmenu
     menu "File systems"
         config MICROPY_USE_SPIFFS
             bool "Use SPIFFS"
@@ -85,7 +127,8 @@ menu "MicroPython"
             range 0x180000 0x1FF8000
             default 0x180000
             help
-            Starting address of the Flash partition to be used as FatFS area
+            Starting address of the Flash partition to be used as internal filesystem area
+            Use hexadecimal format with leading 0x
 
         config MICROPY_INTERNALFS_SIZE
             int "Filesystem size (KB)"
@@ -118,7 +161,7 @@ menu "MicroPython"
 
     endmenu
 
-    menu "Configure SD Card"
+    menu "SD Card configuration"
 		config SDCARD_MODE
 		    int
 		    default 1 if SDCARD_MODE1

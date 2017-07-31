@@ -111,8 +111,13 @@
 #define MICROPY_PY_UERRNO                   (1)
 #define MICROPY_PY_USELECT                  (1)
 #define MICROPY_PY_UTIME_MP_HAL             (1)
+#ifdef CONFIG_MICROPY_USE_THREADS
 #define MICROPY_PY_THREAD                   (1)
 #define MICROPY_PY_THREAD_GIL               (1)
+#else
+#define MICROPY_PY_THREAD                   (0)
+#define MICROPY_PY_THREAD_GIL               (0)
+#endif
 #define MICROPY_PY_THREAD_GIL_VM_DIVISOR    (32)
 
 // extended modules
@@ -139,7 +144,13 @@
 #define MICROPY_PY_MACHINE_SPI_MAX_BAUDRATE (ets_get_cpu_frequency() * 1000000 / 200) // roughly
 #define MICROPY_PY_USSL                     (1)
 #define MICROPY_SSL_MBEDTLS                 (1)
+#ifdef CONFIG_MICROPY_USE_WEBSOCKETS
+#define MICROPY_PY_WEBSOCKET                (1)
+#else
 #define MICROPY_PY_WEBSOCKET                (0)
+#endif
+#define MICROPY_PY_OS_DUPTERM      			(0)
+#define MICROPY_PY_WEBREPL   		        (0)
 
 #ifdef CONFIG_MICROPY_PY_FRAMEBUF
 #define MICROPY_PY_FRAMEBUF                 (1)
@@ -244,6 +255,7 @@ extern const struct _mp_obj_module_t mp_module_ymodem;
 #if CONFIG_MEMMAP_SPIRAM_ENABLE
 #define MICROPY_PORT_ROOT_POINTERS \
     const char *readline_hist[80]; \
+    mp_obj_list_t mod_network_nic_list;                         \
     mp_obj_t machine_pin_irq_handler[40];
 #else
 #define MICROPY_PORT_ROOT_POINTERS \

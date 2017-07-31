@@ -164,6 +164,7 @@ to **flash default spiffs image** *components/spiffs_image/spiffs_image.img* to 
 ### Known issues
 
 * In **dual core** mode, the reset reason after deepsleep may be incorrectly detected. In **unicore** mode reset reason is detected correctly.
+* On **psRAM** build **socket** module and all modules which uses it (like *uftpserver*) can be loaded only if the firmware is built in **unicore** mode
 
 ---
 
