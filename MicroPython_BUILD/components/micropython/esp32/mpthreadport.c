@@ -123,7 +123,7 @@ STATIC void freertos_entry(void *arg) {
     for (;;);
 }
 
-void mp_thread_create_ex(void *(*entry)(void*), void *arg, size_t *stack_size, int priority, char *name) {
+TaskHandle_t mp_thread_create_ex(void *(*entry)(void*), void *arg, size_t *stack_size, int priority, char *name) {
     // store thread entry function into a global variable so we can access it
     ext_thread_entry = entry;
 
@@ -163,10 +163,11 @@ void mp_thread_create_ex(void *(*entry)(void*), void *arg, size_t *stack_size, i
     thread = th;
 
     mp_thread_mutex_unlock(&thread_mutex);
+    return id;
 }
 
-void mp_thread_create(void *(*entry)(void*), void *arg, size_t *stack_size) {
-    mp_thread_create_ex(entry, arg, stack_size, MP_THREAD_PRIORITY, "MPThread");
+void *mp_thread_create(void *(*entry)(void*), void *arg, size_t *stack_size) {
+    return mp_thread_create_ex(entry, arg, stack_size, MP_THREAD_PRIORITY, "MPThread");
 }
 
 void mp_thread_finish(void) {
@@ -226,6 +227,63 @@ void mp_thread_deinit(void) {
     mp_thread_mutex_unlock(&thread_mutex);
     // allow FreeRTOS to clean-up the threads
     vTaskDelay(2);
+}
+
+int mp_thread_suspend(TaskHandle_t id) {
+	int res = 0;
+    mp_thread_mutex_lock(&thread_mutex, 1);
+    for (thread_t *th = thread; th != NULL; th = th->next) {
+        // don't delete the current task
+        if (th->id == xTaskGetCurrentTaskHandle()) {
+            continue;
+        }
+        if (th->id == id) {
+            vTaskSuspend(th->id);
+            res = 1;
+            break;
+        }
+    }
+    mp_thread_mutex_unlock(&thread_mutex);
+    return res;
+}
+
+int mp_thread_resume(TaskHandle_t id) {
+	int res = 0;
+    mp_thread_mutex_lock(&thread_mutex, 1);
+    for (thread_t *th = thread; th != NULL; th = th->next) {
+        // don't delete the current task
+        if (th->id == xTaskGetCurrentTaskHandle()) {
+            continue;
+        }
+        if (th->id == id) {
+            vTaskResume(th->id);
+            res = 1;
+            break;
+        }
+    }
+    mp_thread_mutex_unlock(&thread_mutex);
+    return res;
+}
+
+int mp_thread_stop(TaskHandle_t id) {
+	int res = 0;
+    mp_thread_mutex_lock(&thread_mutex, 1);
+    for (thread_t *th = thread; th != NULL; th = th->next) {
+        // don't delete the current task
+        if (th->id == xTaskGetCurrentTaskHandle()) {
+            continue;
+        }
+        if (th->id == id) {
+            vTaskDelete(th->id);
+            th->ready = 0;
+            res = 1;
+            break;
+        }
+    }
+    mp_thread_mutex_unlock(&thread_mutex);
+    // allow FreeRTOS to clean-up the threads
+    vTaskDelay(2);
+    return res;
 }
 
 #else

@@ -4,7 +4,7 @@ import uos
 import gc
 # based in version in https://github.com/cpopp/MicroFTPServer
 
-print ("== Loading uftpserver module ...")
+quiet_run = False
 
 def send_list_data(path, dataclient, full): 
     try: # whether path is a directory name
@@ -28,7 +28,8 @@ def make_description(path, fname, full):
                 file_permissions, file_size, fname)
     else:
         description = fname + "\r\n"
-        print ("description:" , description)
+        if not quiet_run:
+            print ("description:" , description)
     return description
 
 def send_file_data(path, dataclient):
@@ -45,7 +46,8 @@ def save_file_data(path, dataclient):
             chunk = dataclient.read(512)
             file.write(chunk)
             if len(chunk) < 512:
-                print ("OK finished.....")
+                if not quiet_run:
+                    print ("OK finished.....")
                 break
 
 def get_absolute_path(cwd, payload):
@@ -93,7 +95,10 @@ def fncmp(fname, pattern):
     else:
         return False
 
-def ftpserver(timeout = 300):
+def ftpserver(timeout = 300, noexit = False):
+    global quiet_run
+    quiet_run = noexit
+
     print ("Starting ftp server. Version 1.2")
 
     if not network.WLAN().isconnected():
@@ -130,13 +135,15 @@ def ftpserver(timeout = 300):
             cl.settimeout(timeout)
             cwd = '/'
             try:
-                # print("FTP connection from:", remote_addr)
+                if not quiet_run:
+                    print("FTP connection from:", remote_addr)
                 cl.sendall("220 Hello, this is the ESP32.\r\n")
                 while True:
                     gc.collect()
                     data = cl.readline().decode("utf-8").rstrip("\r\n")
                     if len(data) <= 0:
-                        print("Client disappeared")
+                        if not quiet_run:
+                            print("Client disappeared")
                         break
 
                     command = data.split(" ")[0].upper()
@@ -144,7 +151,8 @@ def ftpserver(timeout = 300):
 
                     path = get_absolute_path(cwd, payload)
 
-                    print("Command={}, Payload={}".format(command, payload))
+                    if not quiet_run:
+                        print("Command={}, Payload={}".format(command, payload))
 
                     if command == "USER":
                         cl.sendall("230 Logged in.\r\n")
@@ -177,14 +185,16 @@ def ftpserver(timeout = 300):
                             cl.sendall(msg_550_fail)
                     elif command == "QUIT":
                         cl.sendall('221 Bye.\r\n')
-                        print ("Received QUIT, exiting")
-                        do_run = False
+                        if not noexit:
+                            print ("Received QUIT, exiting")
+                            do_run = False
                         break
                     elif command == "PASV":
                         result = '227 Entering Passive Mode ({},{},{}).\r\n'.format(
                             addr.replace('.',','), DATA_PORT>>8, DATA_PORT%256)
                         cl.sendall(result)
-                        print ("Sending:",result)
+                        if not quiet_run:
+                            print ("Sending:",result)
                         #dataclient, data_addr = datasocket.accept()
                         #print("FTP Data connection from:", data_addr)
 
@@ -220,7 +230,8 @@ def ftpserver(timeout = 300):
                             dataclient, data_addr = datasocket.accept()
                             dataclient.setblocking(False)
 
-                            print  ("Socket accepted")
+                            if not quiet_run:
+                                print  ("Socket accepted")
                             save_file_data(path, dataclient)
                             cl.sendall("226 Transfer complete.\r\n")
                         except:
@@ -271,9 +282,11 @@ def ftpserver(timeout = 300):
                             cl.sendall("213 Done.\r\n")
                     else:
                         cl.sendall("502 Unsupported command.\r\n")
-                        print("Unsupported command {} with payload {}".format(command, payload))
+                        if not quiet_run:
+                            print("Unsupported command {} with payload {}".format(command, payload))
             except Exception as err:
-                print(err)
+                if not quiet_run:
+                    print(err)
 
             finally:
                 cl.close()

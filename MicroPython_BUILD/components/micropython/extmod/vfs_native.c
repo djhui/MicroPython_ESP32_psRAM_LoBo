@@ -775,7 +775,6 @@ STATIC mp_obj_t native_vfs_mount(mp_obj_t self_in, mp_obj_t readonly, mp_obj_t m
 	        .max_files = CONFIG_MICROPY_FATFS_MAX_OPEN_FILES
 	    };
 
-	    //esp_err_t ret = esp_vfs_fat_sdmmc_mount(VFS_NATIVE_SDCARD_MOUNT_POINT, &host, &slot_config, &mount_config, &sdmmc_card);
 	    esp_err_t ret = esp_vfs_fat_sdmmc_mount(VFS_NATIVE_SDCARD_MOUNT_POINT, &host, &slot_config, &mount_config, &sdmmc_card);
 	    if (ret != ESP_OK) {
 	        if (ret == ESP_FAIL) {

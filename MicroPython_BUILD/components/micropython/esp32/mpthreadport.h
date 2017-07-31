@@ -68,6 +68,10 @@ void mp_thread_init(void);
 void mp_thread_gc_others(void);
 void mp_thread_deinit(void);
 
+int mp_thread_suspend(TaskHandle_t id);
+int mp_thread_resume(TaskHandle_t id);
+int mp_thread_stop(TaskHandle_t id);
+
 #endif
 
 #endif // __MICROPY_INCLUDED_ESP32_MPTHREADPORT_H__

@@ -178,12 +178,13 @@ STATIC void *thread_entry(void *args_in) {
     //  mp_pending_exception? (root pointer)
     //  cur_exception (root pointer)
 
-    DEBUG_printf("[thread] start ts=%p args=%p stack=%p\n", &ts, &args, MP_STATE_THREAD(stack_top));
+    printf("[thread] start ts=%p args=%p stack=%p\n", &ts, &args, MP_STATE_THREAD(stack_top));
 
     nlr_buf_t nlr;
     if (nlr_push(&nlr) == 0) {
         mp_call_function_n_kw(args->fun, args->n_args, args->n_kw, args->args);
         nlr_pop();
+        printf("[thread] Exit ts=%p\n", &ts);
     } else {
         // uncaught exception
         // check for SystemExit
@@ -199,7 +200,7 @@ STATIC void *thread_entry(void *args_in) {
         }
     }
 
-    DEBUG_printf("[thread] finish ts=%p\n", &ts);
+    printf("[thread] finish ts=%p\n", &ts);
 
     // signal that we are finished
     mp_thread_finish();
@@ -258,9 +259,10 @@ STATIC mp_obj_t mod_thread_start_new_thread(size_t n_args, const mp_obj_t *args)
     th_args->fun = args[0];
 
     // spawn the thread!
-    mp_thread_create(thread_entry, th_args, &th_args->stack_size);
+    uintptr_t thr_id = mp_thread_create(thread_entry, th_args, &th_args->stack_size);
 
-    return mp_const_none;
+    return mp_obj_new_int_from_uint((uintptr_t)thr_id);
+    //return mp_const_none;
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_thread_start_new_thread_obj, 2, 3, mod_thread_start_new_thread);
 
@@ -274,6 +276,31 @@ STATIC mp_obj_t mod_thread_allocate_lock(void) {
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_0(mod_thread_allocate_lock_obj, mod_thread_allocate_lock);
 
+STATIC mp_obj_t mod_thread_suspend(mp_obj_t in_id) {
+	uintptr_t thr_id = mp_obj_get_int(in_id);
+
+	if (mp_thread_suspend((void *)thr_id)) return mp_const_true;
+    return mp_const_false;
+}
+STATIC MP_DEFINE_CONST_FUN_OBJ_1(mod_thread_suspend_obj, mod_thread_suspend);
+
+STATIC mp_obj_t mod_thread_resume(mp_obj_t in_id) {
+	uintptr_t thr_id = mp_obj_get_int(in_id);
+
+	if (mp_thread_resume((void *)thr_id)) return mp_const_true;
+    return mp_const_false;
+}
+STATIC MP_DEFINE_CONST_FUN_OBJ_1(mod_thread_resume_obj, mod_thread_resume);
+
+STATIC mp_obj_t mod_thread_stop(mp_obj_t in_id) {
+	uintptr_t thr_id = mp_obj_get_int(in_id);
+
+	if (mp_thread_stop((void *)thr_id)) return mp_const_true;
+    return mp_const_false;
+}
+STATIC MP_DEFINE_CONST_FUN_OBJ_1(mod_thread_stop_obj, mod_thread_stop);
+
+
 STATIC const mp_rom_map_elem_t mp_module_thread_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR___name__), MP_ROM_QSTR(MP_QSTR__thread) },
     { MP_ROM_QSTR(MP_QSTR_LockType), MP_ROM_PTR(&mp_type_thread_lock) },
@@ -282,6 +309,9 @@ STATIC const mp_rom_map_elem_t mp_module_thread_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_start_new_thread), MP_ROM_PTR(&mod_thread_start_new_thread_obj) },
     { MP_ROM_QSTR(MP_QSTR_exit), MP_ROM_PTR(&mod_thread_exit_obj) },
     { MP_ROM_QSTR(MP_QSTR_allocate_lock), MP_ROM_PTR(&mod_thread_allocate_lock_obj) },
+    { MP_ROM_QSTR(MP_QSTR_suspend), MP_ROM_PTR(&mod_thread_suspend_obj) },
+    { MP_ROM_QSTR(MP_QSTR_resume), MP_ROM_PTR(&mod_thread_resume_obj) },
+    { MP_ROM_QSTR(MP_QSTR_stop), MP_ROM_PTR(&mod_thread_stop_obj) },
 };
 
 STATIC MP_DEFINE_CONST_DICT(mp_module_thread_globals, mp_module_thread_globals_table);
