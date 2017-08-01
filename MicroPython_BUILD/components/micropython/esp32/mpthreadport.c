@@ -46,6 +46,8 @@
 #include "py/mpthread.h"
 #include "mpthreadport.h"
 
+extern int MainTaskCore;
+
 // this structure forms a linked list, one node per active thread
 typedef struct _thread_t {
     TaskHandle_t id;        // system id of thread
@@ -143,7 +145,7 @@ TaskHandle_t mp_thread_create_ex(void *(*entry)(void*), void *arg, size_t *stack
     mp_thread_mutex_lock(&thread_mutex, 1);
 
     // create thread
-    TaskHandle_t id = xTaskCreateStaticPinnedToCore(freertos_entry, name, *stack_size / sizeof(StackType_t), arg, priority, stack, tcb, 0);
+    TaskHandle_t id = xTaskCreateStaticPinnedToCore(freertos_entry, name, *stack_size / sizeof(StackType_t), arg, priority, stack, tcb, MainTaskCore);
     if (id == NULL) {
         mp_thread_mutex_unlock(&thread_mutex);
         nlr_raise(mp_obj_new_exception_msg(&mp_type_OSError, "can't create thread"));
@@ -284,6 +286,40 @@ int mp_thread_stop(TaskHandle_t id) {
     // allow FreeRTOS to clean-up the threads
     vTaskDelay(2);
     return res;
+}
+
+int mp_thread_notify(TaskHandle_t id, uint32_t value) {
+	int res = 0;
+    mp_thread_mutex_lock(&thread_mutex, 1);
+    for (thread_t *th = thread; th != NULL; th = th->next) {
+        // don't delete the current task
+        if (th->id == xTaskGetCurrentTaskHandle()) {
+            continue;
+        }
+        if (th->id == id) {
+        	xTaskNotify(th->id, value, eSetBits);
+            res = 1;
+            break;
+        }
+    }
+    mp_thread_mutex_unlock(&thread_mutex);
+    return res;
+}
+
+uint32_t mp_thread_getnotify() {
+	uint32_t value = 0;
+    mp_thread_mutex_lock(&thread_mutex, 1);
+    for (thread_t *th = thread; th != NULL; th = th->next) {
+        // don't delete the current task
+        if (th->id == xTaskGetCurrentTaskHandle()) {
+        	if (xTaskNotifyWait(0, 0xffffffffUL, &value, 1) != pdPASS) {
+        		value = 0;
+        	}
+			break;
+        }
+    }
+    mp_thread_mutex_unlock(&thread_mutex);
+    return value;
 }
 
 #else

@@ -2,6 +2,8 @@ import socket
 import network
 import uos
 import gc
+import _thread
+
 # based in version in https://github.com/cpopp/MicroFTPServer
 
 quiet_run = False
@@ -95,9 +97,18 @@ def fncmp(fname, pattern):
     else:
         return False
 
-def ftpserver(timeout = 300, noexit = False):
+def check_notify(nquit):
+    notif = _thread.getnotification()
+    if notif == nquit:
+        print ("[ftpserver] Received QUIT notification, exiting")
+    elif notif != 0:
+        print("[ftpserver] Notification %u unknown" % (notif))
+    return notif
+
+def ftpserver(timeout = 300, inthread = False):
     global quiet_run
-    quiet_run = noexit
+    quiet_run = inthread
+    notify_quit = 7591
 
     print ("Starting ftp server. Version 1.2")
 
@@ -117,7 +128,10 @@ def ftpserver(timeout = 300, noexit = False):
     datasocket.bind(socket.getaddrinfo("0.0.0.0", DATA_PORT)[0][4])
 
     ftpsocket.listen(1)
-    ftpsocket.settimeout(None)
+    if inthread:
+        ftpsocket.settimeout(1)
+    else:
+        ftpsocket.settimeout(None)
     datasocket.listen(1)
     datasocket.settimeout(None)
 
@@ -131,15 +145,29 @@ def ftpserver(timeout = 300, noexit = False):
         fromname = None
         do_run = True
         while do_run:
-            cl, remote_addr = ftpsocket.accept()
+            if inthread:
+                cl, remote_addr = ftpsocket.accepted()
+                if cl == None:
+                    notif = check_notify(notify_quit)
+                    if notif == notify_quit:
+                        break
+                    continue
+            else:
+                cl, remote_addr = ftpsocket.accept()
             cl.settimeout(timeout)
             cwd = '/'
             try:
+                if inthread:
+                    notif = check_notify(notify_quit)
+                    if notif == notify_quit:
+                        do_run = False;
+                        break
                 if not quiet_run:
                     print("FTP connection from:", remote_addr)
                 cl.sendall("220 Hello, this is the ESP32.\r\n")
                 while True:
                     gc.collect()
+
                     data = cl.readline().decode("utf-8").rstrip("\r\n")
                     if len(data) <= 0:
                         if not quiet_run:
@@ -185,10 +213,10 @@ def ftpserver(timeout = 300, noexit = False):
                             cl.sendall(msg_550_fail)
                     elif command == "QUIT":
                         cl.sendall('221 Bye.\r\n')
-                        if not noexit:
+                        if not inthread:
                             print ("Received QUIT, exiting")
                             do_run = False
-                        break
+                            break
                     elif command == "PASV":
                         result = '227 Entering Passive Mode ({},{},{}).\r\n'.format(
                             addr.replace('.',','), DATA_PORT>>8, DATA_PORT%256)

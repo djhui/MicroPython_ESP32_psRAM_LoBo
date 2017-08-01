@@ -189,6 +189,51 @@ STATIC mp_obj_t socket_accept(const mp_obj_t arg0) {
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_1(socket_accept_obj, socket_accept);
 
+// Same as socket_accept(), but does not raise exception if not accepted
+//--------------------------------------------------
+STATIC mp_obj_t socket_accepted(const mp_obj_t arg0) {
+    socket_obj_t *self = MP_OBJ_TO_PTR(arg0);
+
+    struct sockaddr addr;
+    socklen_t addr_len = sizeof(addr);
+
+    int new_fd = -1;
+    for (int i=0; i<=self->retries; i++) {
+        MP_THREAD_GIL_EXIT();
+        new_fd = lwip_accept_r(self->fd, &addr, &addr_len);
+        MP_THREAD_GIL_ENTER();
+        if (new_fd >= 0) break;
+        if (errno != EAGAIN) exception_from_errno(errno);
+        check_for_exceptions();
+    }
+
+    mp_obj_tuple_t *client = mp_obj_new_tuple(2, NULL);
+
+    if (new_fd < 0) {
+		client->items[0] = mp_const_none;
+		client->items[1] = mp_const_none;
+    }
+    else {
+		// create new socket object
+		socket_obj_t *sock = m_new_obj_with_finaliser(socket_obj_t);
+		sock->base.type = self->base.type;
+		sock->fd = new_fd;
+		sock->domain = self->domain;
+		sock->type = self->type;
+		sock->proto = self->proto;
+		_socket_settimeout(sock, UINT64_MAX);
+
+		// make the return value
+		uint8_t *ip = (uint8_t*)&((struct sockaddr_in*)&addr)->sin_addr;
+		mp_uint_t port = lwip_ntohs(((struct sockaddr_in*)&addr)->sin_port);
+		client->items[0] = sock;
+		client->items[1] = netutils_format_inet_addr(ip, port, NETUTILS_BIG);
+    }
+
+    return client;
+}
+STATIC MP_DEFINE_CONST_FUN_OBJ_1(socket_accepted_obj, socket_accepted);
+
 STATIC mp_obj_t socket_connect(const mp_obj_t arg0, const mp_obj_t arg1) {
     socket_obj_t *self = MP_OBJ_TO_PTR(arg0);
     struct addrinfo *res;
@@ -443,6 +488,7 @@ STATIC const mp_map_elem_t socket_locals_dict_table[] = {
     { MP_OBJ_NEW_QSTR(MP_QSTR_bind), (mp_obj_t)&socket_bind_obj },
     { MP_OBJ_NEW_QSTR(MP_QSTR_listen), (mp_obj_t)&socket_listen_obj },
     { MP_OBJ_NEW_QSTR(MP_QSTR_accept), (mp_obj_t)&socket_accept_obj },
+    { MP_OBJ_NEW_QSTR(MP_QSTR_accepted), (mp_obj_t)&socket_accepted_obj },
     { MP_OBJ_NEW_QSTR(MP_QSTR_connect), (mp_obj_t)&socket_connect_obj },
     { MP_OBJ_NEW_QSTR(MP_QSTR_send), (mp_obj_t)&socket_send_obj },
     { MP_OBJ_NEW_QSTR(MP_QSTR_sendall), (mp_obj_t)&socket_sendall_obj },

@@ -46,11 +46,12 @@
 #include "freertos/queue.h"
 #include "sdkconfig.h"
 
-#if CONFIG_MICROPY_THREAD_PRIORITY < CONFIG_MICROPY_TASK_PRIORITY
-#define MP_THREAD_PRIORITY	CONFIG_MICROPY_THREAD_PRIORITY
-#else
+//ToDo: Check if thread can run on different priority than main task
+//#if CONFIG_MICROPY_THREAD_PRIORITY > CONFIG_MICROPY_TASK_PRIORITY
+//#define MP_THREAD_PRIORITY	CONFIG_MICROPY_THREAD_PRIORITY
+//#else
 #define MP_THREAD_PRIORITY	CONFIG_MICROPY_TASK_PRIORITY
-#endif
+//#endif
 
 #define MP_THREAD_MIN_STACK_SIZE		CONFIG_MICROPY_THREAD_STACK_SIZE*1024
 #define MP_THREAD_DEFAULT_STACK_SIZE	(MP_THREAD_MIN_STACK_SIZE)
@@ -71,6 +72,8 @@ void mp_thread_deinit(void);
 int mp_thread_suspend(TaskHandle_t id);
 int mp_thread_resume(TaskHandle_t id);
 int mp_thread_stop(TaskHandle_t id);
+int mp_thread_notify(TaskHandle_t id, uint32_t value);
+uint32_t mp_thread_getnotify();
 
 #endif
 

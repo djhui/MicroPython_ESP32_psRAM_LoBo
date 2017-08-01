@@ -85,6 +85,9 @@ STATIC StackType_t mp_task_stack[MP_TASK_STACK_LEN] __attribute__((aligned (8)))
 #endif
 STATIC uint8_t *mp_task_heap;
 
+int MainTaskCore = 0;
+
+
 //===============================
 void mp_task(void *pvParameter) {
     volatile uint32_t sp = (uint32_t)get_sp();
@@ -202,14 +205,18 @@ void micropython_entry(void) {
 
     #if MICROPY_PY_THREAD
     #if CONFIG_FREERTOS_UNICORE
+    MainTaskCore = 0;
     mp_task_handle = xTaskCreateStaticPinnedToCore(&mp_task, "mp_task", MP_TASK_STACK_LEN, NULL, MP_TASK_PRIORITY, &mp_task_stack[0], &mp_task_tcb, 0);
     #else
+    MainTaskCore = 1;
     mp_task_handle = xTaskCreateStaticPinnedToCore(&mp_task, "mp_task", MP_TASK_STACK_LEN, NULL, MP_TASK_PRIORITY, &mp_task_stack[0], &mp_task_tcb, 1);
     #endif
     #else // !MICROPY_PY_THREAD
     #if CONFIG_FREERTOS_UNICORE
+    MainTaskCore = 0;
     mp_task_handle = xTaskCreatePinnedToCore(&mp_task, "mp_task", MP_TASK_STACK_LEN, NULL, MP_TASK_PRIORITY, NULL, 0);
     #else
+    MainTaskCore = 1;
     mp_task_handle = xTaskCreatePinnedToCore(&mp_task, "mp_task", MP_TASK_STACK_LEN, NULL, MP_TASK_PRIORITY, NULL, 1);
     #endif
     #endif

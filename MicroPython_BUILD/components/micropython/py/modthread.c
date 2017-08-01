@@ -178,13 +178,12 @@ STATIC void *thread_entry(void *args_in) {
     //  mp_pending_exception? (root pointer)
     //  cur_exception (root pointer)
 
-    printf("[thread] start ts=%p args=%p stack=%p\n", &ts, &args, MP_STATE_THREAD(stack_top));
+    DEBUG_printf("[thread] start ts=%p args=%p stack=%p\n", &ts, &args, MP_STATE_THREAD(stack_top));
 
     nlr_buf_t nlr;
     if (nlr_push(&nlr) == 0) {
         mp_call_function_n_kw(args->fun, args->n_args, args->n_kw, args->args);
         nlr_pop();
-        printf("[thread] Exit ts=%p\n", &ts);
     } else {
         // uncaught exception
         // check for SystemExit
@@ -200,7 +199,7 @@ STATIC void *thread_entry(void *args_in) {
         }
     }
 
-    printf("[thread] finish ts=%p\n", &ts);
+    DEBUG_printf("[thread] finish ts=%p\n", &ts);
 
     // signal that we are finished
     mp_thread_finish();
@@ -276,6 +275,7 @@ STATIC mp_obj_t mod_thread_allocate_lock(void) {
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_0(mod_thread_allocate_lock_obj, mod_thread_allocate_lock);
 
+//--------------------------------------------------
 STATIC mp_obj_t mod_thread_suspend(mp_obj_t in_id) {
 	uintptr_t thr_id = mp_obj_get_int(in_id);
 
@@ -284,6 +284,7 @@ STATIC mp_obj_t mod_thread_suspend(mp_obj_t in_id) {
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_1(mod_thread_suspend_obj, mod_thread_suspend);
 
+//-------------------------------------------------
 STATIC mp_obj_t mod_thread_resume(mp_obj_t in_id) {
 	uintptr_t thr_id = mp_obj_get_int(in_id);
 
@@ -292,6 +293,7 @@ STATIC mp_obj_t mod_thread_resume(mp_obj_t in_id) {
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_1(mod_thread_resume_obj, mod_thread_resume);
 
+//-----------------------------------------------
 STATIC mp_obj_t mod_thread_stop(mp_obj_t in_id) {
 	uintptr_t thr_id = mp_obj_get_int(in_id);
 
@@ -299,6 +301,25 @@ STATIC mp_obj_t mod_thread_stop(mp_obj_t in_id) {
     return mp_const_false;
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_1(mod_thread_stop_obj, mod_thread_stop);
+
+//------------------------------------------------------------------
+STATIC mp_obj_t mod_thread_notify(mp_obj_t in_id, mp_obj_t in_value) {
+	uintptr_t thr_id = mp_obj_get_int(in_id);
+	uint32_t not_value = mp_obj_get_int(in_value);
+	if (not_value == 0) return mp_const_false;
+
+	if (mp_thread_notify((void *)thr_id, not_value)) return mp_const_true;
+    return mp_const_false;
+}
+STATIC MP_DEFINE_CONST_FUN_OBJ_2(mod_thread_notify_obj, mod_thread_notify);
+
+//----------------------------------------------------
+STATIC mp_obj_t mod_thread_getnotify() {
+
+	uint32_t not_val = mp_thread_getnotify();
+    return MP_OBJ_NEW_SMALL_INT(not_val);
+}
+STATIC MP_DEFINE_CONST_FUN_OBJ_0(mod_thread_getnotify_obj, mod_thread_getnotify);
 
 
 STATIC const mp_rom_map_elem_t mp_module_thread_globals_table[] = {
@@ -312,6 +333,8 @@ STATIC const mp_rom_map_elem_t mp_module_thread_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_suspend), MP_ROM_PTR(&mod_thread_suspend_obj) },
     { MP_ROM_QSTR(MP_QSTR_resume), MP_ROM_PTR(&mod_thread_resume_obj) },
     { MP_ROM_QSTR(MP_QSTR_stop), MP_ROM_PTR(&mod_thread_stop_obj) },
+    { MP_ROM_QSTR(MP_QSTR_notify), MP_ROM_PTR(&mod_thread_notify_obj) },
+    { MP_ROM_QSTR(MP_QSTR_getnotification), MP_ROM_PTR(&mod_thread_getnotify_obj) },
 };
 
 STATIC MP_DEFINE_CONST_DICT(mp_module_thread_globals, mp_module_thread_globals_table);
