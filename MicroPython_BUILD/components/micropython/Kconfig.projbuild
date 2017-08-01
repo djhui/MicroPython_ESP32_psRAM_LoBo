@@ -20,6 +20,35 @@ menu "MicroPython"
         Use the second entry for your Region/city as the value set here
 
     menu "System settings"
+		config MICRO_PY_LOG_LEVEL
+		    int
+		    default 0 if MICRO_PY_LOG_LEVEL0
+		    default 1 if MICRO_PY_LOG_LEVEL1
+		    default 2 if MICRO_PY_LOG_LEVEL2
+		    default 3 if MICRO_PY_LOG_LEVEL3
+		    default 4 if MICRO_PY_LOG_LEVEL4
+		    default 5 if MICRO_PY_LOG_LEVEL5
+		
+			choice
+			    prompt "Set ESP32 log level"
+			    default MICRO_PY_LOG_LEVEL2
+			    help
+			        Select Log (debug) level
+			
+			    config MICRO_PY_LOG_LEVEL0
+			        bool "None"
+			    config MICRO_PY_LOG_LEVEL1
+			        bool "Error"
+			    config MICRO_PY_LOG_LEVEL2
+			        bool "Warning"
+			    config MICRO_PY_LOG_LEVEL3
+			        bool "Info"
+			    config MICRO_PY_LOG_LEVEL4
+			        bool "Debug"
+			    config MICRO_PY_LOG_LEVEL5
+			        bool "Verbose"
+			endchoice
+
 	    config MICROPY_TASK_PRIORITY
 	        int "Main task priority"
 	        range 1 20

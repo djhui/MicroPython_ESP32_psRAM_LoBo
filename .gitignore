@@ -3,7 +3,7 @@
 *.o
 *.a
 *.elf
-*.bin
+#*.bin
 *.map
 *.hex
 *.dis

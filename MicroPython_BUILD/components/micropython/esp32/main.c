@@ -174,7 +174,7 @@ soft_reset:
 void micropython_entry(void) {
     nvs_flash_init();
 
-	//esp_log_level_set("*", ESP_LOG_ERROR);
+	esp_log_level_set("*", CONFIG_MICRO_PY_LOG_LEVEL);
 
     #if CONFIG_FREERTOS_UNICORE
     printf("\nFreeRTOS running only on FIRST CORE.\n");
