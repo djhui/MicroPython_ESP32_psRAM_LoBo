@@ -26,9 +26,9 @@ CFLAGS_MOD += -DMICROPY_SSL_AXTLS=1 -I../lib/axtls/ssl -I../lib/axtls/crypto -I.
 LDFLAGS_MOD += -Lbuild -laxtls
 else ifeq ($(MICROPY_SSL_MBEDTLS),1)
 # Can be overridden by ports which have "builtin" mbedTLS
-MICROPY_SSL_MBEDTLS_INCLUDE ?= ../lib/mbedtls/include
+#MICROPY_SSL_MBEDTLS_INCLUDE ?= ../lib/mbedtls/include
 CFLAGS_MOD += -DMICROPY_SSL_MBEDTLS=1 -I$(MICROPY_SSL_MBEDTLS_INCLUDE)
-LDFLAGS_MOD += -L../lib/mbedtls/library -lmbedx509 -lmbedtls -lmbedcrypto
+#LDFLAGS_MOD += -L../lib/mbedtls/library -lmbedx509 -lmbedtls -lmbedcrypto
 endif
 endif
 
@@ -185,7 +185,6 @@ PY_O_BASENAME = \
 	../extmod/machine_pulse.o \
 	../extmod/machine_i2c.o \
 	../extmod/machine_spi.o \
-	../extmod/modussl_axtls.o \
 	../extmod/modussl_mbedtls.o \
 	../extmod/modurandom.o \
 	../extmod/moduselect.o \

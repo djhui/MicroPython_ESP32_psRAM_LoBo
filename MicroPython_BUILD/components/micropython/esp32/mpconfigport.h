@@ -38,7 +38,7 @@
 #define MICROPY_ENABLE_SOURCE_LINE          (1)
 #define MICROPY_ERROR_REPORTING             (MICROPY_ERROR_REPORTING_NORMAL)
 #define MICROPY_WARNINGS                    (1)
-#define MICROPY_FLOAT_IMPL                  (MICROPY_FLOAT_IMPL_FLOAT)
+#define MICROPY_FLOAT_IMPL                  (MICROPY_FLOAT_IMPL_DOUBLE)
 #define MICROPY_PY_BUILTINS_COMPLEX         (1)
 #define MICROPY_CPYTHON_COMPAT              (1)
 #define MICROPY_STREAMS_NON_BLOCK           (1)
@@ -134,6 +134,7 @@
 #define MICROPY_PY_URANDOM                  (1)
 #define MICROPY_PY_URANDOM_EXTRA_FUNCS      (1)
 #define MICROPY_PY_MACHINE                  (1)
+#define MICROPY_PY_MACHINE_PIN_MAKE_NEW     mp_pin_make_new
 #define MICROPY_PY_MACHINE_PULSE            (1)
 #define MICROPY_PY_MACHINE_I2C              (1)
 #define MICROPY_PY_MACHINE_SPI              (1)
@@ -221,6 +222,21 @@ extern const struct _mp_obj_module_t mp_module_usocket;
 extern const struct _mp_obj_module_t mp_module_machine;
 extern const struct _mp_obj_module_t mp_module_network;
 extern const struct _mp_obj_module_t mp_module_ymodem;
+extern const struct _mp_obj_module_t mp_module_display;
+
+#ifdef CONFIG_MICROPY_USE_CURL
+extern const struct _mp_obj_module_t mp_module_curl;
+#define BUILTIN_MODULE_CURL { MP_OBJ_NEW_QSTR(MP_QSTR_curl), (mp_obj_t)&mp_module_curl },
+#else
+#define BUILTIN_MODULE_CURL
+#endif
+
+#ifdef CONFIG_MICROPY_USE_SSH
+extern const struct _mp_obj_module_t mp_module_ssh;
+#define BUILTIN_MODULE_SSH { MP_OBJ_NEW_QSTR(MP_QSTR_curl), (mp_obj_t)&mp_module_ssh },
+#else
+#define BUILTIN_MODULE_SSH
+#endif
 
 #define MICROPY_PORT_BUILTIN_MODULES \
     { MP_OBJ_NEW_QSTR(MP_QSTR_esp), (mp_obj_t)&esp_module }, \
@@ -231,6 +247,9 @@ extern const struct _mp_obj_module_t mp_module_ymodem;
     { MP_OBJ_NEW_QSTR(MP_QSTR_machine), (mp_obj_t)&mp_module_machine }, \
     { MP_OBJ_NEW_QSTR(MP_QSTR_network), (mp_obj_t)&mp_module_network }, \
     { MP_OBJ_NEW_QSTR(MP_QSTR_ymodem), (mp_obj_t)&mp_module_ymodem }, \
+    { MP_OBJ_NEW_QSTR(MP_QSTR_display), (mp_obj_t)&mp_module_display }, \
+	BUILTIN_MODULE_CURL \
+	BUILTIN_MODULE_SSH \
 
 #define MICROPY_PORT_BUILTIN_MODULE_WEAK_LINKS \
     { MP_OBJ_NEW_QSTR(MP_QSTR_binascii), (mp_obj_t)&mp_module_ubinascii }, \
@@ -282,6 +301,7 @@ extern const struct _mp_obj_module_t mp_module_ymodem;
         extern void mp_handle_pending(void); \
         mp_handle_pending(); \
         MP_THREAD_GIL_EXIT(); \
+        vTaskDelay(1); \
         MP_THREAD_GIL_ENTER(); \
     } while (0);
 #else

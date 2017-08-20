@@ -94,6 +94,7 @@ typedef struct _fs_user_mount_t {
 
 extern const mp_obj_type_t mp_native_vfs_type;
 
+int physicalPath(const char *path, char *ph_path);
 char *getcwd(char *buf, size_t size);
 const char * mkabspath(fs_user_mount_t *vfs, const char *path, char *absbuf, int buflen);
 mp_import_stat_t native_vfs_import_stat(struct _fs_user_mount_t *vfs, const char *path);

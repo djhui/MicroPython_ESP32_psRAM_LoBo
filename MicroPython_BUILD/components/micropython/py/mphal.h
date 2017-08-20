@@ -35,7 +35,7 @@
 #endif
 
 #ifndef mp_hal_stdin_rx_chr
-int mp_hal_stdin_rx_chr(void);
+int mp_hal_stdin_rx_chr(uint32_t timeout);
 #endif
 
 #ifndef mp_hal_stdout_tx_str

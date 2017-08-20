@@ -39,11 +39,18 @@
 
 
 #include <freertos/FreeRTOS.h>
+#include <freertos/task.h>
 
 #include <string.h>
 #include <stdio.h>
 #include <limits.h>
 #include "esp_log.h"
+
+#ifdef IDF_USEHEAP
+#include "esp_heap_caps.h"
+#else
+#include "esp_heap_alloc_caps.h"
+#endif
 
 #include <sys/stat.h>
 
@@ -66,10 +73,12 @@
 int spiffs_is_registered = 0;
 int spiffs_is_mounted = 0;
 
+QueueHandle_t spiffs_mutex = NULL;
+
 static const char *TAG = "[spiffs_vfs]";
 
 static int IRAM_ATTR vfs_spiffs_open(const char *path, int flags, int mode);
-static size_t IRAM_ATTR vfs_spiffs_write(int fd, const void *data, size_t size);
+static ssize_t IRAM_ATTR vfs_spiffs_write(int fd, const void *data, size_t size);
 static ssize_t IRAM_ATTR vfs_spiffs_read(int fd, void * dst, size_t size);
 static int IRAM_ATTR vfs_spiffs_fstat(int fd, struct stat * st);
 static int IRAM_ATTR vfs_spiffs_close(int fd);
@@ -99,9 +108,9 @@ typedef struct {
 static spiffs fs;
 static struct list files;
 
-static u8_t *my_spiffs_work_buf;
-static u8_t *my_spiffs_fds;
-static u8_t *my_spiffs_cache;
+static uint8_t *my_spiffs_work_buf;
+static uint8_t *my_spiffs_fds;
+static uint8_t *my_spiffs_cache;
 
 
 /*
@@ -111,8 +120,8 @@ static u8_t *my_spiffs_cache;
  * ########################################
  */
 
-//----------------------------------------------------
-void spiffs_fs_stat(uint32_t *total, uint32_t *used) {
+//--------------------------------------------------------------
+void IRAM_ATTR spiffs_fs_stat(uint32_t *total, uint32_t *used) {
 	if (SPIFFS_info(&fs, total, used) != SPIFFS_OK) {
 		*total = 0;
 		*used = 0;
@@ -124,8 +133,8 @@ void spiffs_fs_stat(uint32_t *total, uint32_t *used) {
  * 1 if it's a directory.
  *
  */
-//-----------------------------------
-static int is_dir(const char *path) {
+//---------------------------------------------
+static int IRAM_ATTR is_dir(const char *path) {
     spiffs_DIR d;
     char npath[PATH_MAX + 1];
     int res = 0;
@@ -158,8 +167,8 @@ static int is_dir(const char *path) {
  * This function translate error codes from SPIFFS to errno error codes
  *
  */
-//-------------------------------
-static int spiffs_result(int res) {
+//-------------------------------------------
+static int IRAM_ATTR spiffs_result(int res) {
     switch (res) {
         case SPIFFS_OK:
         case SPIFFS_ERR_END_OF_OBJECT:
@@ -286,8 +295,8 @@ static int IRAM_ATTR vfs_spiffs_open(const char *path, int flags, int mode) {
     return fd;
 }
 
-//-------------------------------------------------------------------------------
-static size_t IRAM_ATTR vfs_spiffs_write(int fd, const void *data, size_t size) {
+//--------------------------------------------------------------------------------
+static ssize_t IRAM_ATTR vfs_spiffs_write(int fd, const void *data, size_t size) {
 	vfs_spiffs_file_t *file;
 	int res;
 
@@ -535,8 +544,8 @@ static int IRAM_ATTR vfs_spiffs_rename(const char *src, const char *dst) {
     return 0;
 }
 
-//------------------------------------------------
-static DIR* vfs_spiffs_opendir(const char* name) {
+//----------------------------------------------------------
+static DIR* IRAM_ATTR vfs_spiffs_opendir(const char* name) {
 	struct stat st;
 
 	ESP_LOGD(TAG, "opendir() name '%s'", name);
@@ -572,8 +581,8 @@ static DIR* vfs_spiffs_opendir(const char* name) {
 	return (DIR *)dir;
 }
 
-//---------------------------------------------------
-static struct dirent* vfs_spiffs_readdir(DIR* pdir) {
+//-------------------------------------------------------------
+static struct dirent* IRAM_ATTR vfs_spiffs_readdir(DIR* pdir) {
     int res = 0, len = 0, entries = 0;
 
 	vfs_spiffs_dir_t* dir = (vfs_spiffs_dir_t*) pdir;
@@ -771,14 +780,22 @@ int spiffs_mount() {
 	cfg.hal_write_f = (spiffs_write)low_spiffs_write;
 	cfg.hal_erase_f = (spiffs_erase)low_spiffs_erase;
 
-    my_spiffs_work_buf = malloc(cfg.log_page_size * 8);
+	#ifdef IDF_USEHEAP
+	my_spiffs_work_buf = heap_caps_malloc(cfg.log_page_size * 8, MALLOC_CAP_DMA);
+	#else
+	my_spiffs_work_buf = pvPortMallocCaps(cfg.log_page_size * 8, MALLOC_CAP_DMA);
+	#endif
     if (!my_spiffs_work_buf) {
     	err = 1;
     	goto err_exit;
     }
 
     int fds_len = sizeof(spiffs_fd) * SPIFFS_TEMPORAL_CACHE_HIT_SCORE;
-    my_spiffs_fds = malloc(fds_len);
+	#ifdef IDF_USEHEAP
+    my_spiffs_fds = heap_caps_malloc(fds_len, MALLOC_CAP_DMA);
+	#else
+    my_spiffs_fds = pvPortMallocCaps(fds_len, MALLOC_CAP_DMA);
+	#endif
     if (!my_spiffs_fds) {
         free(my_spiffs_work_buf);
     	err = 2;
@@ -786,7 +803,11 @@ int spiffs_mount() {
     }
 
     int cache_len = cfg.log_page_size * SPIFFS_TEMPORAL_CACHE_HIT_SCORE;
-    my_spiffs_cache = malloc(cache_len);
+	#ifdef IDF_USEHEAP
+    my_spiffs_cache = heap_caps_malloc(cache_len, MALLOC_CAP_DMA);
+	#else
+	my_spiffs_cache = pvPortMallocCaps(cache_len, MALLOC_CAP_DMA);
+	#endif
     if (!my_spiffs_cache) {
         free(my_spiffs_work_buf);
         free(my_spiffs_fds);
@@ -797,9 +818,9 @@ int spiffs_mount() {
 	#if MICROPY_SDMMC_SHOW_INFO
 	printf("----------------\n");
 	printf("  Start address: 0x%x; Size %d KB\n", cfg.phys_addr, cfg.phys_size / 1024);
-	printf("    Work buffer: %d B\n", cfg.log_page_size * 8);
-	printf("     FDS buffer: %d B\n", sizeof(spiffs_fd) * SPIFFS_TEMPORAL_CACHE_HIT_SCORE);
-	printf("     Cache size: %d B\n", cfg.log_page_size * SPIFFS_TEMPORAL_CACHE_HIT_SCORE);
+	printf("    Work buffer: %4d B @ %p\n", cfg.log_page_size * 8, my_spiffs_work_buf);
+	printf("     FDS buffer: %4d B @ %p\n", sizeof(spiffs_fd) * SPIFFS_TEMPORAL_CACHE_HIT_SCORE, my_spiffs_fds);
+	printf("     Cache size: %4d B @ %p\n", cfg.log_page_size * SPIFFS_TEMPORAL_CACHE_HIT_SCORE, my_spiffs_cache);
 	printf("----------------\n");
 	#endif
 
@@ -880,6 +901,16 @@ exit:
 void vfs_spiffs_register() {
 
 	if (spiffs_is_registered) return;
+
+	if (spiffs_mutex == NULL) {
+		spiffs_mutex = xSemaphoreCreateMutex();
+		if (spiffs_mutex == NULL) {
+			#if MICROPY_SDMMC_SHOW_INFO
+			printf("Error creating SPIFFS mutex\n");
+			#endif
+			return;
+		}
+	}
 
 	esp_vfs_t vfs = {
         .fd_offset = 0,

@@ -36,24 +36,32 @@
 #include "freertos/semphr.h"
 #include "rom/ets_sys.h"
 #include "esp_system.h"
+#include "soc/dport_reg.h"
+#include "soc/rtc_cntl_reg.h"
+#include "rom/uart.h"
+#include "esp_deep_sleep.h"
+#ifdef IDF_USEHEAP
+#include "esp_heap_caps.h"
+#else
+#include "esp_heap_alloc_caps.h"
+#endif
 
 #include "py/obj.h"
 #include "py/runtime.h"
 #include "extmod/machine_mem.h"
+#include "extmod/machine_signal.h"
 #include "extmod/machine_pulse.h"
 #include "extmod/machine_i2c.h"
-//#include "extmod/machine_spi.h"
 #include "modmachine.h"
-#include "esp_deep_sleep.h"
 #include "mpsleep.h"
-#include "machrtc.h"
+#include "machine_rtc.h"
 #include "uart.h"
-#include "rom/uart.h"
 
 #if MICROPY_PY_MACHINE
 
 extern machine_rtc_config_t machine_rtc_config;
 
+//-----------------------------------------------------------------
 STATIC mp_obj_t machine_freq(size_t n_args, const mp_obj_t *args) {
     if (n_args == 0) {
         // get
@@ -73,12 +81,14 @@ STATIC mp_obj_t machine_freq(size_t n_args, const mp_obj_t *args) {
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(machine_freq_obj, 0, 1, machine_freq);
 
+//-----------------------------------
 STATIC mp_obj_t machine_reset(void) {
     esp_restart();
     return mp_const_none;
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_0(machine_reset_obj, machine_reset);
 
+//---------------------------------------
 STATIC mp_obj_t machine_unique_id(void) {
     uint8_t chipid[6];
     esp_efuse_mac_get_default(chipid);
@@ -86,6 +96,7 @@ STATIC mp_obj_t machine_unique_id(void) {
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_0(machine_unique_id_obj, machine_unique_id);
 
+//----------------------------------
 STATIC mp_obj_t machine_idle(void) {
     taskYIELD();
     return mp_const_none;
@@ -98,6 +109,7 @@ STATIC mp_obj_t machine_disable_irq(void) {
 }
 MP_DEFINE_CONST_FUN_OBJ_0(machine_disable_irq_obj, machine_disable_irq);
 
+//-----------------------------------------------------
 STATIC mp_obj_t machine_enable_irq(mp_obj_t state_in) {
     uint32_t state = mp_obj_get_int(state_in);
     MICROPY_END_ATOMIC_SECTION(state);
@@ -107,15 +119,25 @@ MP_DEFINE_CONST_FUN_OBJ_1(machine_enable_irq_obj, machine_enable_irq);
 
 
 //---------------------------------------
-STATIC mp_obj_t machine_free_heap(void) {
-    return mp_obj_new_int(xPortGetFreeHeapSize());
+STATIC mp_obj_t machine_heap_info(void) {
+	uint32_t total = xPortGetFreeHeapSize();
+	uint32_t psRAM = 0;
+
+	#if CONFIG_MEMMAP_SPIRAM_ENABLE
+		#ifdef IDF_USEHEAP
+		psRAM = heap_caps_get_free_size(MALLOC_CAP_SPISRAM);
+		#else
+		psRAM = xPortGetFreeHeapSizeCaps(MALLOC_CAP_SPIRAM);
+		#endif
+	#endif
+
+    mp_printf(&mp_plat_print, "Free heap outside of MicroPython heap:\n total=%u, SPI SRAM=%u, DRAM=%u\n", total, psRAM, total - psRAM);
+
+    return mp_const_none;
 }
-MP_DEFINE_CONST_FUN_OBJ_0(machine_free_heap_obj, machine_free_heap);
+MP_DEFINE_CONST_FUN_OBJ_0(machine_heap_info_obj, machine_heap_info);
 
-#include "soc/dport_reg.h"
-#include "soc/rtc_cntl_reg.h"
-
-//--------------------------------------------------------------------
+//---------------------------------------------------------------------------------------------
 STATIC mp_obj_t machine_deepsleep(size_t n_args, const mp_obj_t *pos_args, mp_map_t *kw_args) {
 
     enum {ARG_sleep_ms};
@@ -206,23 +228,21 @@ STATIC mp_obj_t machine_stdin_get (mp_obj_t sz_in, mp_obj_t timeout_in) {
 
 	xSemaphoreTake(uart0_mutex, UART_SEMAPHORE_WAIT);
 	uart0_raw_input = 1;
-    while (tmo < timeout) {
-    	c = ringbuf_get(&stdin_ringbuf);
-        if (c != -1) {
-        	//vstr_add_byte(&vstr, (byte)c);
-        	vstr.buf[recv] = (byte)c;
-            recv++;
-            if (recv >= sz) break;
-        }
-		vTaskDelay(10 / portTICK_PERIOD_MS); // wait 10 ms
-    	tmo += 10;
+	xSemaphoreGive(uart0_mutex);
+
+	while (recv < sz) {
+    	c = mp_hal_stdin_rx_chr(timeout);
+    	if (c < 0) break;
+    	vstr.buf[recv++] = (byte)c;
     }
+
+    xSemaphoreTake(uart0_mutex, UART_SEMAPHORE_WAIT);
 	uart0_raw_input = 0;
 	xSemaphoreGive(uart0_mutex);
 
-	if (tmo >= timeout) {
+	if (recv == 0) {
         return mp_const_none;
-    }
+	}
     return mp_obj_new_str_from_vstr(&mp_type_str, &vstr);;
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_2(machine_stdin_get_obj, machine_stdin_get);
@@ -236,10 +256,11 @@ STATIC mp_obj_t machine_stdout_put (mp_obj_t buf_in) {
 
 	xSemaphoreTake(uart0_mutex, UART_SEMAPHORE_WAIT);
 	uart0_raw_input = 1;
-    while (len--) {
-        //mp_hal_stdout_tx_char(*buf++);
-        uart_tx_one_char(*buf++);
-    }
+	xSemaphoreGive(uart0_mutex);
+
+	mp_hal_stdout_tx_strn(buf, len);
+
+	xSemaphoreTake(uart0_mutex, UART_SEMAPHORE_WAIT);
 	uart0_raw_input = 0;
 	xSemaphoreGive(uart0_mutex);
 
@@ -248,8 +269,41 @@ STATIC mp_obj_t machine_stdout_put (mp_obj_t buf_in) {
 STATIC MP_DEFINE_CONST_FUN_OBJ_1(machine_stdout_put_obj, machine_stdout_put);
 
 
-// machine.stdin_take(); res = machine.stdin_get(3,10000); machine.stdin_give()
-//---------------------------------------------------------------
+// Assumes 0 <= max <= RAND_MAX
+// Returns in the closed interval [0, max]
+//--------------------------------------------
+STATIC uint64_t random_at_most(uint32_t max) {
+	uint64_t	// max <= RAND_MAX < ULONG_MAX, so this is okay.
+	num_bins = (uint64_t) max + 1,
+	num_rand = (uint64_t) 0xFFFFFFFF + 1,
+	bin_size = num_rand / num_bins,
+	defect   = num_rand % num_bins;
+
+	uint32_t x;
+	do {
+		x = esp_random();
+	}
+	while (num_rand - defect <= (uint64_t)x); // This is carefully written not to overflow
+
+	// Truncated division is intentional
+	return x/bin_size;
+}
+
+//-----------------------------------------------------------------
+STATIC mp_obj_t machine_random(size_t n_args, const mp_obj_t *args)
+{
+	if (n_args == 1) {
+		uint32_t rmax = mp_obj_get_int(args[0]);
+	    return mp_obj_new_int_from_uint(random_at_most(rmax));
+	}
+	uint32_t rmin = mp_obj_get_int(args[0]);
+	uint32_t rmax = mp_obj_get_int(args[1]);
+	return mp_obj_new_int_from_uint(rmin + random_at_most(rmax - rmin));
+}
+MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(machine_random_obj, 1, 2, machine_random);
+
+
+//===============================================================
 STATIC const mp_rom_map_elem_t machine_module_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR___name__), MP_ROM_QSTR(MP_QSTR_umachine) },
 
@@ -264,7 +318,7 @@ STATIC const mp_rom_map_elem_t machine_module_globals_table[] = {
     { MP_OBJ_NEW_QSTR(MP_QSTR_deepsleep), MP_ROM_PTR(&machine_deepsleep_obj) },
     { MP_OBJ_NEW_QSTR(MP_QSTR_wake_reason), MP_ROM_PTR(&machine_wake_reason_obj) },
     { MP_OBJ_NEW_QSTR(MP_QSTR_wake_description), MP_ROM_PTR(&machine_wake_desc_obj) },
-    { MP_ROM_QSTR(MP_QSTR_free_heap), MP_ROM_PTR(&machine_free_heap_obj) },
+    { MP_ROM_QSTR(MP_QSTR_heap_info), MP_ROM_PTR(&machine_heap_info_obj) },
 
 	{ MP_ROM_QSTR(MP_QSTR_stdin_get), MP_ROM_PTR(&machine_stdin_get_obj) },
 	{ MP_ROM_QSTR(MP_QSTR_stdout_put), MP_ROM_PTR(&machine_stdout_put_obj) },
@@ -274,20 +328,25 @@ STATIC const mp_rom_map_elem_t machine_module_globals_table[] = {
 
     { MP_ROM_QSTR(MP_QSTR_time_pulse_us), MP_ROM_PTR(&machine_time_pulse_us_obj) },
 
-    { MP_ROM_QSTR(MP_QSTR_Timer), MP_ROM_PTR(&machine_timer_type) },
+    { MP_ROM_QSTR(MP_QSTR_random), MP_ROM_PTR(&machine_random_obj) },
+
+	{ MP_ROM_QSTR(MP_QSTR_Timer), MP_ROM_PTR(&machine_timer_type) },
     { MP_ROM_QSTR(MP_QSTR_Pin), MP_ROM_PTR(&machine_pin_type) },
+    { MP_ROM_QSTR(MP_QSTR_Signal), MP_ROM_PTR(&machine_signal_type) },
     { MP_ROM_QSTR(MP_QSTR_TouchPad), MP_ROM_PTR(&machine_touchpad_type) },
     { MP_ROM_QSTR(MP_QSTR_ADC), MP_ROM_PTR(&machine_adc_type) },
     { MP_ROM_QSTR(MP_QSTR_DAC), MP_ROM_PTR(&machine_dac_type) },
-    { MP_ROM_QSTR(MP_QSTR_I2C), MP_ROM_PTR(&machine_i2c_type) },
+    { MP_ROM_QSTR(MP_QSTR_swI2C), MP_ROM_PTR(&machine_i2c_type) },
+    { MP_ROM_QSTR(MP_QSTR_hwI2C), MP_ROM_PTR(&machine_hw_i2c_type) },
     { MP_ROM_QSTR(MP_QSTR_PWM), MP_ROM_PTR(&machine_pwm_type) },
     { MP_ROM_QSTR(MP_QSTR_SPI), MP_ROM_PTR(&machine_hw_spi_type) },
     { MP_ROM_QSTR(MP_QSTR_UART), MP_ROM_PTR(&machine_uart_type) },
     { MP_OBJ_NEW_QSTR(MP_QSTR_RTC), MP_ROM_PTR(&mach_rtc_type) },
+    { MP_OBJ_NEW_QSTR(MP_QSTR_Neopixel), MP_ROM_PTR(&machine_neopixel_type) },
 };
-
 STATIC MP_DEFINE_CONST_DICT(machine_module_globals, machine_module_globals_table);
 
+//=========================================
 const mp_obj_module_t mp_module_machine = {
     .base = { &mp_type_module },
     .globals = (mp_obj_dict_t*)&machine_module_globals,

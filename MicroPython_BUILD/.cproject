@@ -20,7 +20,11 @@
 							<option id="cdt.managedbuild.option.gnu.cross.prefix.71538353" name="Prefix" superClass="cdt.managedbuild.option.gnu.cross.prefix"/>
 							<option id="cdt.managedbuild.option.gnu.cross.path.1104288213" name="Path" superClass="cdt.managedbuild.option.gnu.cross.path"/>
 							<targetPlatform archList="all" binaryParser="org.eclipse.cdt.core.GNU_ELF" id="cdt.managedbuild.targetPlatform.gnu.cross.1813748978" isAbstract="false" osList="all" superClass="cdt.managedbuild.targetPlatform.gnu.cross"/>
-							<builder id="cdt.managedbuild.builder.gnu.cross.917214998" keepEnvironmentInBuildfile="false" managedBuildOn="false" name="Gnu Make Builder" superClass="cdt.managedbuild.builder.gnu.cross"/>
+							<builder id="cdt.managedbuild.builder.gnu.cross.917214998" keepEnvironmentInBuildfile="false" managedBuildOn="false" name="Gnu Make Builder" superClass="cdt.managedbuild.builder.gnu.cross">
+								<outputEntries>
+									<entry flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="outputPath" name=""/>
+								</outputEntries>
+							</builder>
 							<tool id="cdt.managedbuild.tool.gnu.cross.c.compiler.746622695" name="Cross GCC Compiler" superClass="cdt.managedbuild.tool.gnu.cross.c.compiler">
 								<option id="gnu.c.compiler.option.include.paths.1930340268" name="Include paths (-I)" superClass="gnu.c.compiler.option.include.paths" useByScannerDiscovery="false" valueType="includePath">
 									<listOptionValue builtIn="false" value="&quot;${IDF_PATH}/components/vfs/include&quot;"/>
@@ -38,17 +42,20 @@
 									<listOptionValue builtIn="false" value="&quot;${IDF_PATH}/components/spi_flash/include&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${IDF_PATH}/components/wear_levelling/include&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${IDF_PATH}/components/soc/esp32/include&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${IDF_PATH}/components/heap/include&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/MicroPython_BUILD}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/MicroPython_BUILD/build/include}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/MicroPython_BUILD/components/micropython/genhdr}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${PWD}/../xtensa-esp32-elf/bin&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${PWD}/../xtensa-esp32-elf/xtensa-esp32-elf/include&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/MicroPython_BUILD/build/genhdr}&quot;"/>
 								</option>
 								<option id="gnu.c.compiler.option.preprocessor.def.symbols.507238637" name="Defined symbols (-D)" superClass="gnu.c.compiler.option.preprocessor.def.symbols" useByScannerDiscovery="false" valueType="definedSymbols">
 									<listOptionValue builtIn="false" value="BUILD_TIME=100000"/>
 									<listOptionValue builtIn="false" value="LED_ACT=5"/>
 									<listOptionValue builtIn="false" value="LWIP_DNS=1"/>
 									<listOptionValue builtIn="false" value="LWIP_SOCKET=1"/>
+									<listOptionValue builtIn="false" value="IDF_USEHEAP=1"/>
 								</option>
 								<inputType id="cdt.managedbuild.tool.gnu.c.compiler.input.827066523" superClass="cdt.managedbuild.tool.gnu.c.compiler.input"/>
 							</tool>
@@ -102,7 +109,6 @@
 		<buildTargets>
 			<target name="all" path="" targetID="org.eclipse.cdt.build.MakeTargetBuilder">
 				<buildCommand>${PWD}/BUILD.sh</buildCommand>
-				<buildArguments/>
 				<buildTarget>-j2</buildTarget>
 				<stopOnError>true</stopOnError>
 				<useDefaultCommand>false</useDefaultCommand>
@@ -110,7 +116,6 @@
 			</target>
 			<target name="flash" path="" targetID="org.eclipse.cdt.build.MakeTargetBuilder">
 				<buildCommand>${PWD}/BUILD.sh</buildCommand>
-				<buildArguments/>
 				<buildTarget>flash</buildTarget>
 				<stopOnError>true</stopOnError>
 				<useDefaultCommand>false</useDefaultCommand>
@@ -118,13 +123,12 @@
 			</target>
 			<target name="clean" path="" targetID="org.eclipse.cdt.build.MakeTargetBuilder">
 				<buildCommand>${PWD}/BUILD.sh</buildCommand>
-				<buildArguments/>
 				<buildTarget>clean</buildTarget>
 				<stopOnError>true</stopOnError>
 				<useDefaultCommand>false</useDefaultCommand>
 				<runAllBuilders>true</runAllBuilders>
 			</target>
-			<target name="all psram" path="" targetID="org.eclipse.cdt.build.MakeTargetBuilder">
+			<target name="PSRAM all" path="" targetID="org.eclipse.cdt.build.MakeTargetBuilder">
 				<buildCommand>${PWD}/BUILD.sh</buildCommand>
 				<buildArguments/>
 				<buildTarget>-j2 psram</buildTarget>
@@ -132,7 +136,7 @@
 				<useDefaultCommand>false</useDefaultCommand>
 				<runAllBuilders>true</runAllBuilders>
 			</target>
-			<target name="clean psram" path="" targetID="org.eclipse.cdt.build.MakeTargetBuilder">
+			<target name="PSRAM clean" path="" targetID="org.eclipse.cdt.build.MakeTargetBuilder">
 				<buildCommand>${PWD}/BUILD.sh</buildCommand>
 				<buildArguments/>
 				<buildTarget>clean psram</buildTarget>
@@ -140,10 +144,33 @@
 				<useDefaultCommand>false</useDefaultCommand>
 				<runAllBuilders>true</runAllBuilders>
 			</target>
-			<target name="flash psram" path="" targetID="org.eclipse.cdt.build.MakeTargetBuilder">
+			<target name="PSRAM flash" path="" targetID="org.eclipse.cdt.build.MakeTargetBuilder">
 				<buildCommand>${PWD}/BUILD.sh</buildCommand>
 				<buildArguments/>
 				<buildTarget>flash psram</buildTarget>
+				<stopOnError>true</stopOnError>
+				<useDefaultCommand>false</useDefaultCommand>
+				<runAllBuilders>true</runAllBuilders>
+			</target>
+			<target name="all (verbose)" path="" targetID="org.eclipse.cdt.build.MakeTargetBuilder">
+				<buildCommand>${PWD}/BUILD.sh</buildCommand>
+				<buildArguments/>
+				<buildTarget>all verbose</buildTarget>
+				<stopOnError>true</stopOnError>
+				<useDefaultCommand>false</useDefaultCommand>
+				<runAllBuilders>true</runAllBuilders>
+			</target>
+			<target name="esp-idf monitor" path="" targetID="org.eclipse.cdt.build.MakeTargetBuilder">
+				<buildCommand>${PWD}/BUILD.sh</buildCommand>
+				<buildTarget>monitor</buildTarget>
+				<stopOnError>true</stopOnError>
+				<useDefaultCommand>false</useDefaultCommand>
+				<runAllBuilders>true</runAllBuilders>
+			</target>
+			<target name="PSRAM all (verbose)" path="" targetID="org.eclipse.cdt.build.MakeTargetBuilder">
+				<buildCommand>${PWD}/BUILD.sh</buildCommand>
+				<buildArguments/>
+				<buildTarget>all psram verbose</buildTarget>
 				<stopOnError>true</stopOnError>
 				<useDefaultCommand>false</useDefaultCommand>
 				<runAllBuilders>true</runAllBuilders>

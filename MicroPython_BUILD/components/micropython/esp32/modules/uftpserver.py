@@ -1,8 +1,5 @@
-import socket
-import network
-import uos
-import gc
-import _thread
+import network, socket, uos, utime
+import gc, _thread
 
 # based in version in https://github.com/cpopp/MicroFTPServer
 
@@ -23,15 +20,28 @@ def send_list_data(path, dataclient, full):
 
 def make_description(path, fname, full):
     if full:
-        stat = uos.stat(get_absolute_path(path,fname))
-        file_permissions = "drwxr-xr-x" if (stat[0] & 0o170000 == 0o040000) else "-rw-r--r--"
-        file_size = stat[6]
-        description = "{}    1 owner group {:>10} Jan 1 2000 {}\r\n".format(
-                file_permissions, file_size, fname)
+        if (path == '/') and ((fname == 'flash') or (fname == 'sd')):
+            file_permissions = "drwxrwxrwx"
+            file_size = 0
+            file_time = utime.strftime("%b %d %H:%M")
+        else:
+            stat = uos.stat(get_absolute_path(path,fname))
+            file_size = stat[6]
+            ftime = utime.localtime(stat[7])
+            if (stat[0] & 0o170000 == 0o040000):
+                # directory
+                file_permissions = "drwxrwxrwx"
+            else:
+                # file
+                file_permissions = "-rw-rw-rw-"
+            if utime.localtime()[0] == ftime[0]:
+                file_time = utime.strftime("%b %d %H:%M", ftime)
+            else:
+                file_time = utime.strftime("%b %d %Y", ftime)
+        description = "{}    1 owner group {:>10} {} {}\r\n".format(
+                file_permissions, file_size, file_time, fname)
     else:
         description = fname + "\r\n"
-        if not quiet_run:
-            print ("description:" , description)
     return description
 
 def send_file_data(path, dataclient):
@@ -105,12 +115,13 @@ def check_notify(nquit):
         print("[ftpserver] Notification %u unknown" % (notif))
     return notif
 
-def ftpserver(timeout = 300, inthread = False):
+def ftpserver(timeout = 300, inthread = False, prnip = True):
     global quiet_run
     quiet_run = inthread
     notify_quit = 7591
 
-    print ("Starting ftp server. Version 1.2")
+    if prnip:
+        print ("Starting ftp server. Version 1.2")
 
     if not network.WLAN().isconnected():
         print("Not connected!")
@@ -138,7 +149,8 @@ def ftpserver(timeout = 300, inthread = False):
     msg_250_OK = '250 OK\r\n'
     msg_550_fail = '550 Failed\r\n'
     addr = network.WLAN().ifconfig()[0]
-    print("FTPServer address: ", addr)
+    if prnip:
+        print("FTPServer IP address: ", addr)
 
     try:
         dataclient = None
@@ -180,7 +192,7 @@ def ftpserver(timeout = 300, inthread = False):
                     path = get_absolute_path(cwd, payload)
 
                     if not quiet_run:
-                        print("Command={}, Payload={}".format(command, payload))
+                        print("Command: [{}], Payload: [{}]".format(command, payload))
 
                     if command == "USER":
                         cl.sendall("230 Logged in.\r\n")
@@ -311,10 +323,11 @@ def ftpserver(timeout = 300, inthread = False):
                     else:
                         cl.sendall("502 Unsupported command.\r\n")
                         if not quiet_run:
-                            print("Unsupported command {} with payload {}".format(command, payload))
+                            print("Unsupported command [{}] with payload [{}]".format(command, payload))
             except Exception as err:
                 if not quiet_run:
                     print(err)
+                    do_run = False
 
             finally:
                 cl.close()

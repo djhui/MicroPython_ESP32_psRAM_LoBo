@@ -71,41 +71,32 @@ static unsigned short crc16(const unsigned char *buf, unsigned long count)
   return crc;
 }
 
+/*
 //---------------------------------------------------------------------------
 static int32_t receive_Bytes (unsigned char *buf, int size, uint32_t timeout)
 {
 	unsigned char ch;
-
-	int sz = 1;
-
-    uint32_t tmo = 0;
     int cb = -1;
     int recv = 0;
 
-    while (tmo < timeout) {
-    	cb = ringbuf_get(&stdin_ringbuf);
-        if (cb != -1) {
-        	buf[recv] = (uint8_t)cb;
-            recv++;
-            if (recv >= sz) break;
-        }
-        else {
-        	vTaskDelay(10 / portTICK_PERIOD_MS); // wait 10 ms
-        	tmo += 10;
-        }
+    while (recv < size) {
+    	cb = mp_hal_stdin_rx_chr(timeout);
+    	if (cb < 0) break;
+    	buf[recv++] = (uint8_t)cb;
     }
-
-	if (tmo >= timeout) return -1;
-    return 0;
+	if (recv == 0) return -1;
+	return 0;
 }
+*/
 
 //--------------------------------------------------------------
 static int32_t Receive_Byte (unsigned char *c, uint32_t timeout)
 {
 	unsigned char ch;
+	int cb = mp_hal_stdin_rx_chr(timeout);
 
-	if (receive_Bytes (&ch, 1, timeout) == 0) *c = ch;
-	else return -1;
+	if (cb < 0) return -1;
+	*c = (uint8_t)cb;
     return 0;
 }
 
@@ -114,10 +105,12 @@ static void uart_consume()
 {
 	xSemaphoreTake(uart0_mutex, UART_SEMAPHORE_WAIT);
 	uart0_raw_input = 1;
-    int cb = 0;
+	xSemaphoreGive(uart0_mutex);
+	int cb = mp_hal_stdin_rx_chr(1);
     while (cb >= 0) {
-    	cb = ringbuf_get(&stdin_ringbuf);
+    	cb = mp_hal_stdin_rx_chr(1);
     }
+	xSemaphoreTake(uart0_mutex, UART_SEMAPHORE_WAIT);
     uart0_raw_input = 0;
 	xSemaphoreGive(uart0_mutex);
 }
@@ -657,36 +650,12 @@ STATIC mp_obj_t ymodem_recv(mp_obj_t fname_in)
     char fullname[128] = {'\0'};
     int err = 1;
     char err_msg[128] = {'\0'};
-    char cwd[128] = {'\0'};;
     char orig_name[128] = {'\0'};
-    char *pcwd = NULL;
 
-    if (fname[0] == '/') {
-    	sprintf(err_msg, "Only relative file names are accepted");
+    if (physicalPath(fname, fullname) != 0) {
+    	sprintf(err_msg, "File name cannot be resolved");
 		goto exit;
     }
-    pcwd = getcwd(cwd, 128);
-    if (pcwd == NULL) {
-    	sprintf(err_msg, "Get CWD");
-		goto exit;
-    }
-
-    // find on which device is the file
-    if (strstr(cwd, VFS_NATIVE_MOUNT_POINT) != NULL) {
-    	sprintf(fullname, "%s/", VFS_NATIVE_MOUNT_POINT);
-    	pcwd = strstr(cwd, VFS_NATIVE_MOUNT_POINT) + strlen(VFS_NATIVE_MOUNT_POINT) + 1;
-    }
-    else if (strstr(cwd, VFS_NATIVE_SDCARD_MOUNT_POINT) != NULL) {
-    	sprintf(fullname, "%s/", VFS_NATIVE_SDCARD_MOUNT_POINT);
-    	pcwd = strstr(cwd, VFS_NATIVE_SDCARD_MOUNT_POINT) + strlen(VFS_NATIVE_SDCARD_MOUNT_POINT) + 1;
-    }
-    else {
-    	sprintf(err_msg, "File not on known file system");
-		goto exit;
-    }
-    strcat(fullname, pcwd);
-    if (fullname[strlen(fullname)-1] != '/') strcat(fullname, "/");
-    strcat(fullname, fname);
 
 	// Open the file
 	FILE *ffd = fopen(fullname, "wb");
@@ -696,9 +665,11 @@ STATIC mp_obj_t ymodem_recv(mp_obj_t fname_in)
 
 		xSemaphoreTake(uart0_mutex, UART_SEMAPHORE_WAIT);
 		uart0_raw_input = 1;
+		xSemaphoreGive(uart0_mutex);
 
 		int rec_res = Ymodem_Receive(ffd, 1000000, orig_name, err_msg);
 
+		xSemaphoreTake(uart0_mutex, UART_SEMAPHORE_WAIT);
 		uart0_raw_input = 0;
 		xSemaphoreGive(uart0_mutex);
 
@@ -737,32 +708,10 @@ STATIC mp_obj_t ymodem_send(mp_obj_t fname_in)
     char orig_name[128] = {'\0'};
     char *pcwd = NULL;
 
-    if (fname[0] == '/') {
-    	sprintf(err_msg, "Only relative file names are accepted");
+    if (physicalPath(fname, fullname) != 0) {
+    	sprintf(err_msg, "File name cannot be resolved");
 		goto exit;
     }
-    pcwd = getcwd(cwd, 128);
-    if (pcwd == NULL) {
-    	sprintf(err_msg, "Get CWD");
-		goto exit;
-    }
-
-    // find on which device is the file
-    if (strstr(cwd, VFS_NATIVE_MOUNT_POINT) != NULL) {
-    	sprintf(fullname, "%s/", VFS_NATIVE_MOUNT_POINT);
-    	pcwd = strstr(cwd, VFS_NATIVE_MOUNT_POINT) + strlen(VFS_NATIVE_MOUNT_POINT) + 1;
-    }
-    else if (strstr(cwd, VFS_NATIVE_SDCARD_MOUNT_POINT) != NULL) {
-    	sprintf(fullname, "%s/", VFS_NATIVE_SDCARD_MOUNT_POINT);
-    	pcwd = strstr(cwd, VFS_NATIVE_SDCARD_MOUNT_POINT) + strlen(VFS_NATIVE_SDCARD_MOUNT_POINT) + 1;
-    }
-    else {
-    	sprintf(err_msg, "File not on known file system");
-		goto exit;
-    }
-    strcat(fullname, pcwd);
-    if (fullname[strlen(fullname)-1] != '/') strcat(fullname, "/");
-    strcat(fullname, fname);
 
     // Get file size
 	struct stat buf;
@@ -781,9 +730,11 @@ STATIC mp_obj_t ymodem_send(mp_obj_t fname_in)
 
 		xSemaphoreTake(uart0_mutex, UART_SEMAPHORE_WAIT);
 		uart0_raw_input = 1;
+		xSemaphoreGive(uart0_mutex);
 
 		int trans_res = Ymodem_Transmit(fname, fsize, ffd, err_msg);
 
+		xSemaphoreTake(uart0_mutex, UART_SEMAPHORE_WAIT);
 	    uart0_raw_input = 0;
 		xSemaphoreGive(uart0_mutex);
 

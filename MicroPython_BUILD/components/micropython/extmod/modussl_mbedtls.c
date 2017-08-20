@@ -37,6 +37,8 @@
 #include "py/runtime.h"
 #include "py/stream.h"
 
+#include "sdkconfig.h"
+
 // mbedtls_time_t
 #include "mbedtls/platform.h"
 #include "mbedtls/net.h"
@@ -45,8 +47,9 @@
 #include "mbedtls/pk.h"
 #include "mbedtls/entropy.h"
 #include "mbedtls/ctr_drbg.h"
+#ifdef CONFIG_MBEDTLS_DEBUG
 #include "mbedtls/debug.h"
-
+#endif
 
 typedef struct _mp_obj_ssl_socket_t {
     mp_obj_base_t base;
@@ -132,8 +135,10 @@ STATIC mp_obj_ssl_socket_t *socket_new(mp_obj_t sock, struct ssl_args *args) {
     mbedtls_x509_crt_init(&o->cert);
     mbedtls_pk_init(&o->pkey);
     mbedtls_ctr_drbg_init(&o->ctr_drbg);
+	#ifdef CONFIG_MBEDTLS_DEBUG
     // Debug level (0-4)
     mbedtls_debug_set_threshold(0);
+	#endif
 
     mbedtls_entropy_init(&o->entropy);
     ret = mbedtls_ctr_drbg_seed(&o->ctr_drbg, mbedtls_entropy_func, &o->entropy, NULL, 0);

@@ -66,37 +66,21 @@ menu "MicroPython"
 	
 	    config MICROPY_STACK_SIZE
 	        int "MicroPython stack size (KB)"
-		   	depends on !MEMMAP_SPIRAM_ENABLE
-	        range 8 32
-	        default 16
+	        range 8 32 if !MEMMAP_SPIRAM_ENABLE
+	        range 8 64 if MEMMAP_SPIRAM_ENABLE
+	        default 16 if !MEMMAP_SPIRAM_ENABLE
+	        default 32 if MEMMAP_SPIRAM_ENABLE
 	        help
 	        Set the size of the MicroPython stack in Kbytes
 	
 	    config MICROPY_HEAP_SIZE
 	        int "MicroPython heap size (KB)"
-		   	depends on !MEMMAP_SPIRAM_ENABLE
-	        range 48 128
-	        default 92
+	        range 48 128 if !MEMMAP_SPIRAM_ENABLE
+	        range 1024 4096 if MEMMAP_SPIRAM_ENABLE
+	        default 92 if !MEMMAP_SPIRAM_ENABLE
+	        default 2048 if MEMMAP_SPIRAM_ENABLE
 	        help
 	        Set the size of the MicroPython heap in Kbytes
-	
-	    config MICROPY_STACK_SIZE_PSRAM
-	        int "MicroPython stack size (KB)"
-		   	depends on MEMMAP_SPIRAM_ENABLE
-	        range 16 128
-	        default 32
-	        help
-	        Set the size of the MicroPython stack in Kbytes
-	        We are using psRAM and stack size can be set up to 128 KB
-	
-	    config MICROPY_HEAP_SIZE_PSRAM
-	        int "MicroPython heap size (KB)"
-		   	depends on MEMMAP_SPIRAM_ENABLE
-	        range 1024 4096
-	        default 4096
-	        help
-	        Set the size of the MicroPython heap in Kbytes
-	        The heap is placed on psRAM and and can be up to 4096 KB in size
 	
 	    config MICROPY_USE_THREADS
 	        bool "Use threads"
@@ -104,6 +88,14 @@ menu "MicroPython"
 	        help
 	        Use _thread module
 	
+	    config MICROPY_THREAD_MAX_THREADS
+	        int "Maximum number of threads"
+	        depends on MICROPY_USE_THREADS
+	        range 1 16
+	        default 4
+	        help
+	        Set the maximum number of threads that can run simultaneosly
+
 	    config MICROPY_THREAD_PRIORITY
 	        int "Threads default priority"
 	        depends on MICROPY_USE_THREADS
@@ -127,7 +119,7 @@ menu "MicroPython"
     menu "Modules"
 	    config MICROPY_PY_FRAMEBUF
 	        bool "Enable framebuffer"
-	        default y
+	        default n
 	        help
 	        Include framebuffer module into build
 	
@@ -142,6 +134,26 @@ menu "MicroPython"
 	        default n
 	        help
 	        Include websockets module into build
+	
+	    config MICROPY_USE_CURL
+	        bool "Use Curl module"
+	        default n
+	        help
+	        Include CURL module into build
+	        Using CURLmodule will add ~400KB to your code size
+	
+	    config MICROPY_USE_FTP
+	        bool "FTP support in Curl module"
+	        depends on MICROPY_USE_CURL
+	        default n
+	        help
+	        Include Ftp support in Curl module
+	
+	    config MICROPY_USE_SSH
+	        bool "Use SSH module"
+	        default n
+	        help
+	        Include SSH module into build
 	
 	endmenu
     menu "File systems"

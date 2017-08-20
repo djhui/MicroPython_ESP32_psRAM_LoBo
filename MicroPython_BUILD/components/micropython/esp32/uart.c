@@ -37,11 +37,14 @@
 STATIC void uart_irq_handler(void *arg);
 
 QueueHandle_t uart0_mutex = NULL;
+QueueSetMemberHandle_t uart0_semaphore = NULL;
 int uart0_raw_input = 0;
 
-
-void uart_init(void) {
+//------------------
+void uart_init(void)
+{
 	uart0_mutex = xSemaphoreCreateMutex();
+	uart0_semaphore = xSemaphoreCreateBinary();
 
 	uart_isr_handle_t handle;
     uart_isr_register(UART_NUM_0, uart_irq_handler, NULL, ESP_INTR_FLAG_LOWMED | ESP_INTR_FLAG_IRAM, &handle);
@@ -49,11 +52,16 @@ void uart_init(void) {
 }
 
 // all code executed in ISR must be in IRAM, and any const data must be in DRAM
-STATIC void IRAM_ATTR uart_irq_handler(void *arg) {
+//-----------------------------------------------
+STATIC void IRAM_ATTR uart_irq_handler(void *arg)
+{
     volatile uart_dev_t *uart = &UART0;
+    static int xHigherPriorityTaskWoken;
+
     uart->int_clr.rxfifo_full = 1;
     uart->int_clr.frm_err = 1;
     uart->int_clr.rxfifo_tout = 1;
+    xHigherPriorityTaskWoken = pdFALSE;
     while (uart->status.rxfifo_cnt) {
         uint8_t c = uart->fifo.rw_byte;
 		if ((uart0_raw_input == 0) && (c == mp_interrupt_char)) {
@@ -64,9 +72,10 @@ STATIC void IRAM_ATTR uart_irq_handler(void *arg) {
 				MP_STATE_VM(sched_state) = MP_SCHED_PENDING;
 			}
 			#endif
-		} else {
+		}
+		else {
 			// this is an inline function so will be in IRAM
 			ringbuf_put(&stdin_ringbuf, c);
 		}
     }
-}
+    xSemaphoreGiveFromISR( uart0_semaphore, &xHigherPriorityTaskWoken );}

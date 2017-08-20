@@ -57,7 +57,7 @@
 #include "modmachine.h"
 #include "mpthreadport.h"
 #include "mpsleep.h"
-#include "machrtc.h"
+#include "machine_rtc.h"
 
 #include "sdkconfig.h"
 
@@ -65,23 +65,16 @@
 // MicroPython runs as a task under FreeRTOS
 // =========================================
 
-#define MP_TASK_PRIORITY        CONFIG_MICROPY_TASK_PRIORITY
-#if CONFIG_MEMMAP_SPIRAM_ENABLE
-// External SPIRAM is available, more memory for stack & heap can be allocated
-#define MP_TASK_STACK_SIZE      (CONFIG_MICROPY_STACK_SIZE_PSRAM * 1024)
-#define MP_TASK_HEAP_SIZE       (CONFIG_MICROPY_HEAP_SIZE_PSRAM * 1024 - 256)
-#else
-// Only DRAM memory available, limited amount of memory for stack & heap can be used
-#define MP_TASK_STACK_SIZE      (CONFIG_MICROPY_STACK_SIZE * 1024)
-#define MP_TASK_HEAP_SIZE       (CONFIG_MICROPY_HEAP_SIZE * 1024)
-#endif
-#define MP_TASK_STACK_LEN       (MP_TASK_STACK_SIZE / sizeof(StackType_t))
+#define MP_TASK_PRIORITY	CONFIG_MICROPY_TASK_PRIORITY
+#define MP_TASK_STACK_SIZE	(CONFIG_MICROPY_STACK_SIZE * 1024)
+#define MP_TASK_HEAP_SIZE	(CONFIG_MICROPY_HEAP_SIZE * 1024)
+#define MP_TASK_STACK_LEN	(MP_TASK_STACK_SIZE / sizeof(StackType_t))
 
 
-TaskHandle_t mp_task_handle;
+STATIC TaskHandle_t MainTaskHandle;
 #if MICROPY_PY_THREAD
-STATIC StaticTask_t mp_task_tcb;
-STATIC StackType_t mp_task_stack[MP_TASK_STACK_LEN] __attribute__((aligned (8)));
+STATIC StaticTask_t DRAM_ATTR mp_task_tcb;
+STATIC StackType_t DRAM_ATTR mp_task_stack[MP_TASK_STACK_LEN] __attribute__((aligned (8)));
 #endif
 STATIC uint8_t *mp_task_heap;
 
@@ -91,10 +84,6 @@ int MainTaskCore = 0;
 //===============================
 void mp_task(void *pvParameter) {
     volatile uint32_t sp = (uint32_t)get_sp();
-
-/*    #if MICROPY_PY_THREAD
-    mp_thread_init(&mp_task_stack[0], MP_TASK_STACK_LEN);
-    #endif*/
 
     uart_init();
 
@@ -113,7 +102,7 @@ void mp_task(void *pvParameter) {
     mp_thread_preinit(&mp_task_stack[0], MP_TASK_STACK_LEN);
 #endif
 
-    // initialise the stack pointer for the main thread
+    // Initialize the stack pointer for the main thread
     mp_stack_set_top((void *)sp);
     mp_stack_set_limit(MP_TASK_STACK_SIZE - 1024);
 
@@ -157,6 +146,7 @@ soft_reset:
     }
 
     #if MICROPY_PY_THREAD
+    // delete all running threads
     mp_thread_deinit();
     #endif
 
@@ -169,11 +159,39 @@ soft_reset:
     fflush(stdout);
     goto soft_reset;
 }
-
+#include "libs/neopixel.h"
 //============================
 void micropython_entry(void) {
     nvs_flash_init();
+/*
+    printf("==== START RGB ====\n");
+    uint8_t pixel_count = 24;
+    pixel_settings_t px = NEOPIXEL_INIT_CONFIG_DEFAULT();
+    px.pixel_count = pixel_count;
+    memcpy(&px.timings, &np_type_ws2812, sizeof(pixel_timing_t));
+	px.items = malloc(sizeof(rmt_item32_t) * ((pixel_count * 32) + 1));
+	px.pixels = malloc(sizeof(pixel_t) * pixel_count);
 
+	rmt_config_t rx = NEOPIXEL_RMT_INIT_CONFIG_DEFAULT();
+	ESP_ERROR_CHECK(rmt_config(&rx));
+	ESP_ERROR_CHECK(rmt_driver_install(RMT_CHANNEL_0, 0, 0));
+	np_clear(&px);
+	for(uint8_t i = 0; i < 8; ++i) {
+		np_set_pixel_color(&px, i, 255, 0, 0, 0);
+	}
+	for(uint8_t i = 8; i < 16; ++i) {
+		np_set_pixel_color(&px, i, 0, 255, 0, 0);
+	}
+	for(uint8_t i = 16; i < 24; ++i) {
+		np_set_pixel_color(&px, i, 0, 0, 255, 0);
+	}
+	np_show(&px);
+
+	printf("==== DONE RGB ====\n");
+*/
+
+
+    // === Set esp32 log level while running MicroPython ===
 	esp_log_level_set("*", CONFIG_MICRO_PY_LOG_LEVEL);
 
     #if CONFIG_FREERTOS_UNICORE
@@ -183,42 +201,46 @@ void micropython_entry(void) {
     #endif
     printf("\nuPY stack size = %d bytes\n", MP_TASK_STACK_LEN-1024);
 
-    // Allocate heap memory
+    // ==== Allocate heap memory ====
     #if CONFIG_MEMMAP_SPIRAM_ENABLE
-
-    #if !CONFIG_MEMMAP_SPIRAM_ENABLE_MALLOC
-    printf("uPY  heap size = %d bytes (in SPIRAM using pvPortMallocCaps)\n\n", MP_TASK_HEAP_SIZE);
-    mp_task_heap = pvPortMallocCaps(MP_TASK_HEAP_SIZE, MALLOC_CAP_SPIRAM);
+		// ## USING SPI RAM FOR HEAP ##
+		#if !CONFIG_MEMMAP_SPIRAM_ENABLE_MALLOC
+		printf("uPY  heap size = %d bytes (in SPIRAM using pvPortMallocCaps)\n\n", MP_TASK_HEAP_SIZE);
+		mp_task_heap = pvPortMallocCaps(MP_TASK_HEAP_SIZE, MALLOC_CAP_SPIRAM);
+		#else
+		printf("uPY  heap size = %d bytes (in SPIRAM using malloc)\n\n", MP_TASK_HEAP_SIZE);
+		mp_task_heap = malloc(MP_TASK_HEAP_SIZE);
+		#endif
     #else
-    printf("uPY  heap size = %d bytes (in SPIRAM using malloc)\n\n", MP_TASK_HEAP_SIZE);
-    mp_task_heap = malloc(MP_TASK_HEAP_SIZE);
+		// ## USING DRAM FOR HEAP ##
+		printf("uPY  heap size = %d bytes\n\n", MP_TASK_HEAP_SIZE);
+		mp_task_heap = malloc(MP_TASK_HEAP_SIZE);
     #endif
 
-    #else  // !CONFIG_MEMMAP_SPIRAM_ENABLE
-    printf("uPY  heap size = %d bytes\n\n", MP_TASK_HEAP_SIZE);
-    mp_task_heap = malloc(MP_TASK_HEAP_SIZE);
-    #endif
     if (mp_task_heap == NULL) {
         printf("Error allocating heap, Halted.\n");
         return;
     }
 
+    // ==== Create and start main MicroPython task ====
     #if MICROPY_PY_THREAD
-    #if CONFIG_FREERTOS_UNICORE
-    MainTaskCore = 0;
-    mp_task_handle = xTaskCreateStaticPinnedToCore(&mp_task, "mp_task", MP_TASK_STACK_LEN, NULL, MP_TASK_PRIORITY, &mp_task_stack[0], &mp_task_tcb, 0);
+		// ==== THREADs ARE USED ====
+		#if CONFIG_FREERTOS_UNICORE
+			MainTaskCore = 0;
+			MainTaskHandle = xTaskCreateStaticPinnedToCore(&mp_task, "mp_task", MP_TASK_STACK_LEN, NULL, MP_TASK_PRIORITY, &mp_task_stack[0], &mp_task_tcb, 0);
+		#else
+			MainTaskCore = 1;
+			MainTaskHandle = xTaskCreateStaticPinnedToCore(&mp_task, "mp_task", MP_TASK_STACK_LEN, NULL, MP_TASK_PRIORITY, &mp_task_stack[0], &mp_task_tcb, 1);
+		#endif
     #else
-    MainTaskCore = 1;
-    mp_task_handle = xTaskCreateStaticPinnedToCore(&mp_task, "mp_task", MP_TASK_STACK_LEN, NULL, MP_TASK_PRIORITY, &mp_task_stack[0], &mp_task_tcb, 1);
-    #endif
-    #else // !MICROPY_PY_THREAD
-    #if CONFIG_FREERTOS_UNICORE
-    MainTaskCore = 0;
-    mp_task_handle = xTaskCreatePinnedToCore(&mp_task, "mp_task", MP_TASK_STACK_LEN, NULL, MP_TASK_PRIORITY, NULL, 0);
-    #else
-    MainTaskCore = 1;
-    mp_task_handle = xTaskCreatePinnedToCore(&mp_task, "mp_task", MP_TASK_STACK_LEN, NULL, MP_TASK_PRIORITY, NULL, 1);
-    #endif
+		// ==== THREADs ARE NOT USED ====
+		#if CONFIG_FREERTOS_UNICORE
+			MainTaskCore = 0;
+			MainTaskHandle = xTaskCreatePinnedToCore(&mp_task, "mp_task", MP_TASK_STACK_LEN, NULL, MP_TASK_PRIORITY, NULL, 0);
+		#else
+			MainTaskCore = 1;
+			MainTaskHandle = xTaskCreatePinnedToCore(&mp_task, "mp_task", MP_TASK_STACK_LEN, NULL, MP_TASK_PRIORITY, NULL, 1);
+		#endif
     #endif
 }
 
@@ -228,8 +250,3 @@ void nlr_jump_fail(void *val) {
     esp_restart();
 }
 
-// modussl_mbedtls uses this function but it's not enabled in ESP IDF
-//-----------------------------------------------
-void mbedtls_debug_set_threshold(int threshold) {
-    (void)threshold;
-}

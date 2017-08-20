@@ -25,6 +25,7 @@ class SDCard:
     def __init__(self, chdir=False):
         # Using ESP32 native VFS
         self.VFS = uos.VfsNative(1)
+        # ## DO NOT CHANGE MOUNT POINT, IT MUST BE /sd ##
         uos.mount(self.VFS, '/sd')
         if chdir:
             uos.chdir('/sd')

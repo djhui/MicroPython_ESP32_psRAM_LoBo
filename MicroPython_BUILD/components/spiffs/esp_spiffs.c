@@ -28,6 +28,17 @@
  */
 
 #include <stdlib.h>
+#include <stdint.h>
+#include <stdbool.h>
+
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+
+#ifdef IDF_USEHEAP
+#include "esp_heap_caps.h"
+#else
+#include "esp_heap_alloc_caps.h"
+#endif
 
 #include "esp_spiffs.h"
 #include "esp_attr.h"
@@ -36,32 +47,36 @@
 
 #include <esp_spi_flash.h>
 
-s32_t IRAM_ATTR esp32_spi_flash_read(u32_t addr, u32_t size, u8_t *dst) {
-	u32_t aaddr;
-	u8_t *buff = NULL;
-	u8_t *abuff = NULL;
-	u32_t asize;
+int32_t IRAM_ATTR esp32_spi_flash_read(uint32_t addr, uint32_t size, uint8_t *dst) {
+	uint32_t aaddr;
+	uint8_t *buff = NULL;
+	uint8_t *abuff = NULL;
+	uint32_t asize;
 
 	asize = size;
 	
 	// Align address to 4 byte
-	aaddr = (addr + (4 - 1)) & (u32_t)-4;
+	aaddr = (addr + (4 - 1)) & (uint32_t)-4;
 	if (aaddr != addr) {
 		aaddr -= 4;
 		asize += (addr - aaddr);
 	}
 
 	// Align size to 4 byte
-	asize = (asize + (4 - 1)) & (u32_t)-4;
+	asize = (asize + (4 - 1)) & (uint32_t)-4;
 
 	if ((aaddr != addr) || (asize != size)) {
 		// Align buffer
-		buff = malloc(asize + 4);
+		#ifdef IDF_USEHEAP
+		buff = heap_caps_malloc(asize+4, MALLOC_CAP_DMA);
+		#else
+		buff = pvPortMallocCaps(asize+4, MALLOC_CAP_DMA);
+		#endif
 		if (!buff) {
 			return SPIFFS_ERR_INTERNAL;
 		}
 
-		abuff = (u8_t *)(((ptrdiff_t)buff + (4 - 1)) & (u32_t)-4);
+		abuff = (uint8_t *)(((ptrdiff_t)buff + (4 - 1)) & (uint32_t)-4);
 
 		if (spi_flash_read(aaddr, (void *)abuff, asize) != 0) {
 			free(buff);
@@ -76,15 +91,14 @@ s32_t IRAM_ATTR esp32_spi_flash_read(u32_t addr, u32_t size, u8_t *dst) {
 			return SPIFFS_ERR_INTERNAL;
 		}
 	}
-	
     return SPIFFS_OK;
 }
 
-s32_t IRAM_ATTR esp32_spi_flash_write(u32_t addr, u32_t size, const u8_t *src) {
-	u32_t aaddr;
-	u8_t *buff = NULL;
-	u8_t *abuff = NULL;
-	u32_t asize;
+int32_t IRAM_ATTR esp32_spi_flash_write(uint32_t addr, uint32_t size, const uint8_t *src) {
+	uint32_t aaddr;
+	uint8_t *buff = NULL;
+	uint8_t *abuff = NULL;
+	uint32_t asize;
 
 	asize = size;
 	
@@ -100,12 +114,16 @@ s32_t IRAM_ATTR esp32_spi_flash_write(u32_t addr, u32_t size, const u8_t *src) {
 
 	if ((aaddr != addr) || (asize != size)) {
 		// Align buffer
-		buff = malloc(asize + 4);
+		#ifdef IDF_USEHEAP
+		buff = heap_caps_malloc(asize+4, MALLOC_CAP_DMA);
+		#else
+		buff = pvPortMallocCaps(asize+4, MALLOC_CAP_DMA);
+		#endif
 		if (!buff) {
 			return SPIFFS_ERR_INTERNAL;
 		}
 
-		abuff = (u8_t *)(((ptrdiff_t)buff + (4 - 1)) & -4);
+		abuff = (uint8_t *)(((ptrdiff_t)buff + (4 - 1)) & -4);
 
 		if (spi_flash_read(aaddr, (void *)abuff, asize) != 0) {
 			free(buff);
@@ -129,7 +147,7 @@ s32_t IRAM_ATTR esp32_spi_flash_write(u32_t addr, u32_t size, const u8_t *src) {
     return SPIFFS_OK;
 }
 
-s32_t IRAM_ATTR esp32_spi_flash_erase(u32_t addr, u32_t size) {
+int32_t IRAM_ATTR esp32_spi_flash_erase(uint32_t addr, uint32_t size) {
 	if (spi_flash_erase_sector(addr >> 12) != 0) {
 		return SPIFFS_ERR_INTERNAL;
 	}

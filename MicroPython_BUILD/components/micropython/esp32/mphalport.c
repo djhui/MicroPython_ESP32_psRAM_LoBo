@@ -28,6 +28,7 @@
 
 #include <stdio.h>
 #include <sys/time.h>
+#include <time.h>
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -43,89 +44,107 @@
 #include "sdkconfig.h"
 
 STATIC uint8_t stdin_ringbuf_array[CONFIG_MICROPY_RX_BUFFER_SIZE];
-ringbuf_t stdin_ringbuf = {stdin_ringbuf_array, sizeof(stdin_ringbuf_array)};
+ringbuf_t stdin_ringbuf = {stdin_ringbuf_array, sizeof(stdin_ringbuf_array), 0, 0};
 
+// wait until at least one character is received or the timeout expires
+//---------------------------------------
+int mp_hal_stdin_rx_chr(uint32_t timeout)
+{
+	uint32_t wait_end = mp_hal_ticks_ms() + timeout;
+	int c = -1;
 
-int mp_hal_stdin_rx_chr(void) {
-    for (;;) {
-		xSemaphoreTake(uart0_mutex, UART_SEMAPHORE_WAIT);
-        int c = ringbuf_get(&stdin_ringbuf);
-		xSemaphoreGive(uart0_mutex);
-        if (c != -1) {
-            return c;
+	for (;;) {
+    	if (mp_hal_ticks_ms() > wait_end) return -1;
+
+    	c = ringbuf_get(&stdin_ringbuf);
+    	if (c < 0) {
+    		// no character in ring buffer
+        	// wait 10 ms for character
+    	   	MP_THREAD_GIL_EXIT();
+        	if ( xSemaphoreTake( uart0_semaphore, 10 / portTICK_PERIOD_MS ) == pdTRUE ) {
+        	   	MP_THREAD_GIL_ENTER();
+                c = ringbuf_get(&stdin_ringbuf);
+        	}
+        	else {
+        	   	MP_THREAD_GIL_ENTER();
+        		c = -1;
+        	}
+    	}
+    	if (c >= 0) return c;
+
+        xSemaphoreTake(uart0_mutex, UART_SEMAPHORE_WAIT);
+        int raw = uart0_raw_input;
+    	xSemaphoreGive(uart0_mutex);
+        if (raw == 0) {
+        	MICROPY_EVENT_POLL_HOOK
         }
-        MICROPY_EVENT_POLL_HOOK
-		vTaskDelay(10 / portTICK_PERIOD_MS); // wait 10 ms
     }
+    return -1;
 }
 
 void mp_hal_stdout_tx_char(char c) {
-	xSemaphoreTake(uart0_mutex, UART_SEMAPHORE_WAIT);
     uart_tx_one_char(c);
-	xSemaphoreGive(uart0_mutex);
     //mp_uos_dupterm_tx_strn(&c, 1);
 }
 
 void mp_hal_stdout_tx_str(const char *str) {
-    MP_THREAD_GIL_EXIT();
+   	MP_THREAD_GIL_EXIT();
     while (*str) {
-        mp_hal_stdout_tx_char(*str++);
+        uart_tx_one_char(*str++);
     }
-    MP_THREAD_GIL_ENTER();
+   	MP_THREAD_GIL_ENTER();
 }
 
 void mp_hal_stdout_tx_strn(const char *str, uint32_t len) {
-    MP_THREAD_GIL_EXIT();
+   	MP_THREAD_GIL_EXIT();
     while (len--) {
-        mp_hal_stdout_tx_char(*str++);
+        uart_tx_one_char(*str++);
     }
-    MP_THREAD_GIL_ENTER();
+   	MP_THREAD_GIL_ENTER();
 }
 
 void mp_hal_stdout_tx_strn_cooked(const char *str, uint32_t len) {
-    MP_THREAD_GIL_EXIT();
+   	MP_THREAD_GIL_EXIT();
     while (len--) {
         if (*str == '\n') {
-            mp_hal_stdout_tx_char('\r');
+            uart_tx_one_char('\r');
         }
-        mp_hal_stdout_tx_char(*str++);
+        uart_tx_one_char(*str++);
     }
-    MP_THREAD_GIL_ENTER();
+   	MP_THREAD_GIL_ENTER();
 }
 
+//------------------------------
 uint32_t mp_hal_ticks_ms(void) {
     struct timeval tv;
     gettimeofday(&tv, NULL);
-    return tv.tv_sec * 1000 + tv.tv_usec / 1000;
+    return tv.tv_sec * 1000 + (tv.tv_usec / 1000);
 }
 
+//------------------------------
 uint32_t mp_hal_ticks_us(void) {
     struct timeval tv;
     gettimeofday(&tv, NULL);
     return tv.tv_sec * 1000000 + tv.tv_usec;
 }
 
+//---------------------------------
 void mp_hal_delay_ms(uint32_t ms) {
-    struct timeval tv_start;
-    struct timeval tv_end;
-    uint64_t dt;
-    gettimeofday(&tv_start, NULL);
-    for (;;) {
-        gettimeofday(&tv_end, NULL);
-        dt = (tv_end.tv_sec - tv_start.tv_sec) * 1000 + (tv_end.tv_usec - tv_start.tv_usec) / 1000;
-        if (dt + portTICK_PERIOD_MS >= ms) {
-            // doing a vTaskDelay would take us beyound requested delay time
-            break;
-        }
-        MICROPY_EVENT_POLL_HOOK
-        vTaskDelay(1);
-    }
-    if (dt < ms) {
-        // do the remaining delay accurately
-        ets_delay_us((ms - dt) * 1000);
-    }
+	if (ms == 0) return;
+
+	uint32_t wait_ticks = ms / portTICK_PERIOD_MS;	// number of ticks in delay time
+	uint32_t dticks = ms % portTICK_PERIOD_MS;		// remaining milli seconds
+
+	if (wait_ticks > 0) {
+	   	MP_THREAD_GIL_EXIT();
+        vTaskDelay(wait_ticks);
+       	MP_THREAD_GIL_ENTER();
+	}
+    // do the remaining delay accurately
+    ets_delay_us(dticks * 1000);
 }
 
+//---------------------------------
 void mp_hal_delay_us(uint32_t us) {
     ets_delay_us(us);
 }

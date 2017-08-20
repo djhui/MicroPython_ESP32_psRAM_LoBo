@@ -44,7 +44,7 @@
 #include "esp_vfs.h"
 #include "esp_vfs_fat.h"
 #include "driver/sdmmc_host.h"
-#ifndef CONFIG_MEMMAP_SPIRAM_ENABLE
+#ifdef IDF_HAS_SDSPIHOST
 #include "driver/sdspi_host.h"
 #endif
 #include "sdmmc_cmd.h"
@@ -118,6 +118,28 @@ STATIC sdmmc_card_t *sdmmc_card;
 // esp-idf doesn't seem to have a cwd; create one.
 char cwd[MICROPY_ALLOC_PATH_MAX + 1] = { 0 };
 
+
+//-----------------------------------------------
+int physicalPath(const char *path, char *ph_path)
+{
+    if (path[0] == '/') {
+    	// absolute path
+    	if (strstr(path, "/flash") == path) {
+			sprintf(ph_path, "%s%s", VFS_NATIVE_MOUNT_POINT, path+6);
+    	}
+    	else if (strstr(path, "/sd") == path) {
+			sprintf(ph_path, "%s%s", VFS_NATIVE_SDCARD_MOUNT_POINT, path+3);
+    	}
+    	else return -3;
+    }
+    else {
+    	strcpy(ph_path, cwd);
+    	if (ph_path[strlen(ph_path)-1] != '/') strcat(ph_path, "/");
+		strcat(ph_path, path);
+    }
+    return 0;
+}
+
 //-------------------------------------
 int vfs_chdir(const char *path, int device)
 {
@@ -160,6 +182,13 @@ char *getcwd(char *buf, size_t size)
 		return NULL;
 	}
 	strcpy(buf, cwd);
+	if (strstr(buf, VFS_NATIVE_MOUNT_POINT) != NULL) {
+		memmove(buf, buf + strlen(VFS_NATIVE_MOUNT_POINT), 1+strlen(buf+strlen(VFS_NATIVE_MOUNT_POINT)));
+	}
+	else if (strstr(cwd, VFS_NATIVE_SDCARD_MOUNT_POINT) != NULL) {
+		memmove(buf, buf + strlen(VFS_NATIVE_SDCARD_MOUNT_POINT), 1+strlen(buf+strlen(VFS_NATIVE_SDCARD_MOUNT_POINT)));
+	}
+
 	return buf;
 }
 
@@ -490,10 +519,10 @@ STATIC mp_obj_t native_vfs_stat(mp_obj_t vfs_in, mp_obj_t path_in) {
 	t->items[3] = MP_OBJ_NEW_SMALL_INT(0); // st_nlink
 	t->items[4] = MP_OBJ_NEW_SMALL_INT(0); // st_uid
 	t->items[5] = MP_OBJ_NEW_SMALL_INT(0); // st_gid
-	t->items[6] = MP_OBJ_NEW_SMALL_INT(buf.st_size); // st_size
-	t->items[7] = MP_OBJ_NEW_SMALL_INT(buf.st_atime); // st_atime
-	t->items[8] = MP_OBJ_NEW_SMALL_INT(buf.st_atime); // st_mtime
-	t->items[9] = MP_OBJ_NEW_SMALL_INT(buf.st_atime); // st_ctime
+	t->items[6] = mp_obj_new_int(buf.st_size); // st_size
+	t->items[7] = mp_obj_new_int(buf.st_atime); // st_atime
+	t->items[8] = mp_obj_new_int(buf.st_mtime); // st_mtime
+	t->items[9] = mp_obj_new_int(buf.st_ctime); // st_ctime
 
 	return MP_OBJ_FROM_PTR(t);
 }
@@ -737,7 +766,7 @@ STATIC mp_obj_t native_vfs_mount(mp_obj_t self_in, mp_obj_t readonly, mp_obj_t m
 	    mp_int_t card_mode = 3;
 
 	    // Configure sdmmc interface
-		#ifdef CONFIG_SDCARD_MODE1
+		#if defined(CONFIG_SDCARD_MODE1) && defined(IDF_HAS_SDSPIHOST)
 			sdmmc_host_t host = SDSPI_HOST_DEFAULT();
 			sdspi_slot_config_t slot_config = SDSPI_SLOT_CONFIG_DEFAULT();
 		    gpio_set_pull_mode(CONFIG_SDCARD_MISO, GPIO_PULLUP_ONLY);
@@ -751,7 +780,7 @@ STATIC mp_obj_t native_vfs_mount(mp_obj_t self_in, mp_obj_t readonly, mp_obj_t m
 		#else
 			sdmmc_host_t host = SDMMC_HOST_DEFAULT();
 			sdmmc_slot_config_t slot_config = SDMMC_SLOT_CONFIG_DEFAULT();
-			#ifdef CONFIG_SDCARD_MODE2
+			#if defined(CONFIG_SDCARD_MODE2) || (defined(CONFIG_SDCARD_MODE1) && !defined(IDF_HAS_SDSPIHOST))
 		        // Use 1-line SD mode
 			    gpio_set_pull_mode(2, GPIO_PULLUP_ONLY);
 			    gpio_set_pull_mode(14, GPIO_PULLUP_ONLY);

@@ -26,6 +26,8 @@
 #ifndef MICROPY_INCLUDED_PY_RINGBUF_H
 #define MICROPY_INCLUDED_PY_RINGBUF_H
 
+#include "esp_attr.h"
+
 typedef struct _ringbuf_t {
     uint8_t *buf;
     uint16_t size;
@@ -45,7 +47,7 @@ typedef struct _ringbuf_t {
     (r)->iget = (r)->iput = 0; \
 }
 
-static inline int ringbuf_get(ringbuf_t *r) {
+static inline int IRAM_ATTR ringbuf_get(ringbuf_t *r) {
     if (r->iget == r->iput) {
         return -1;
     }
@@ -56,7 +58,7 @@ static inline int ringbuf_get(ringbuf_t *r) {
     return v;
 }
 
-static inline int ringbuf_put(ringbuf_t *r, uint8_t v) {
+static inline int IRAM_ATTR ringbuf_put(ringbuf_t *r, uint8_t v) {
     uint32_t iput_new = r->iput + 1;
     if (iput_new >= r->size) {
         iput_new = 0;

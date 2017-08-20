@@ -21,7 +21,7 @@ def get_version_info_from_git():
 
     # Note: git describe doesn't work if no tag is available
     try:
-        git_tag = subprocess.check_output(["git", "describe", "--dirty", "--always"], stderr=subprocess.STDOUT, universal_newlines=True).strip()
+        git_tag = subprocess.check_output(["git", "describe", "--always"], stderr=subprocess.STDOUT, universal_newlines=True).strip()
     except subprocess.CalledProcessError as er:
         if er.returncode == 128:
             # git exit code of 128 means no repository found
@@ -42,7 +42,7 @@ def get_version_info_from_git():
         # Check if there are any staged files.
         subprocess.check_call(["git", "diff-index", "--cached", "--quiet", "HEAD", "--"], stderr=subprocess.STDOUT)
     except subprocess.CalledProcessError:
-        git_hash += "-dirty"
+        git_hash += ""
     except OSError:
         return None
 

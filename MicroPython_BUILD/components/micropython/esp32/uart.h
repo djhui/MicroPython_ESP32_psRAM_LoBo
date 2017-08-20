@@ -31,9 +31,10 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/queue.h"
 
-#define UART_SEMAPHORE_WAIT 1800000	// time to wait for mutex in milliseconds
+#define UART_SEMAPHORE_WAIT 1800000	// time to wait for semaphore in milliseconds
 
 QueueHandle_t uart0_mutex;
+QueueSetMemberHandle_t uart0_semaphore;
 int uart0_raw_input;
 
 void uart_init(void);

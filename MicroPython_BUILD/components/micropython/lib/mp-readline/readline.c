@@ -419,15 +419,57 @@ void readline_init(vstr_t *line, const char *prompt) {
     #endif
 }
 
+#if MICROPY_PY_THREAD
+//-------------------------------------------------
+STATIC void check_notifications(const char *prompt)
+{
+	if (mp_thread_replAcceptMsg(-1) == 0) return;
+
+	int msg_int, msg_buflen;
+    uint8_t *msg_buf = NULL;
+    uint32_t from_th;
+    char th_name[THREAD_NAME_MAX_SIZE];
+
+    uint32_t notify_val = mp_thread_getnotify();
+	if (notify_val > 0) {
+		mp_printf(&mp_plat_print,"\n[Notification] %u\n", notify_val);
+		//mp_hal_stdout_tx_str(prompt);
+	}
+
+	int type = mp_thread_getmsg(&msg_int, &msg_buf, &msg_buflen, &from_th);
+	if (type != THREAD_MSG_TYPE_NONE) {
+		mp_thread_getname((void *)from_th, th_name);
+		if (type == THREAD_MSG_TYPE_INTEGER) {
+			mp_printf(&mp_plat_print,"\n[Message from thread \"%s\"] %d\n", th_name, msg_int);
+		}
+		else if ((type == THREAD_MSG_TYPE_STRING) && (msg_buf != NULL)) {
+			msg_buf[msg_buflen] = 0;
+			mp_printf(&mp_plat_print,"\n[Message from thread \"%s\"] %s\n", th_name, msg_buf);
+			free(msg_buf);
+		}
+		//mp_hal_stdout_tx_str(prompt);
+	}
+}
+#endif
+
+//----------------------------------------------
 int readline(vstr_t *line, const char *prompt) {
     readline_init(line, prompt);
+
     for (;;) {
-        int c = mp_hal_stdin_rx_chr();
+        int c = mp_hal_stdin_rx_chr(100);
+        if (c < 0) {
+			#if MICROPY_PY_THREAD
+        	check_notifications(prompt);
+			#endif
+        	continue;
+        }
         int r = readline_process_char(c);
         if (r >= 0) {
             return r;
         }
     }
+    return 0;
 }
 
 void readline_push_history(const char *line) {

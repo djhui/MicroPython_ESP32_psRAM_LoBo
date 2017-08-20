@@ -4,7 +4,10 @@
 # (Uses default behaviour of compiling all source files in directory, adding 'include' to include path.)
 
 
-COMPONENT_ADD_INCLUDEDIRS := .  genhdr py esp32 lib lib/utils lib/mp-readline extmod extmod/crypto-algorithms lib/netutils drivers/dht lib/timeutils  lib/berkeley-db-1.xx/include lib/berkeley-db-1.xx/btree lib/berkeley-db-1.xx/db lib/berkeley-db-1.xx/hash lib/berkeley-db-1.xx/man lib/berkeley-db-1.xx/mpool lib/berkeley-db-1.xx/recno ../spiffs
+COMPONENT_ADD_INCLUDEDIRS := .  genhdr py esp32 lib lib/utils lib/mp-readline extmod extmod/crypto-algorithms lib/netutils drivers/dht \
+							 lib/timeutils  lib/berkeley-db-1.xx/include lib/berkeley-db-1.xx/btree \
+							 lib/berkeley-db-1.xx/db lib/berkeley-db-1.xx/hash lib/berkeley-db-1.xx/man lib/berkeley-db-1.xx/mpool lib/berkeley-db-1.xx/recno \
+							 ../spiffs ../curl/include ../curl/lib ../zlib ../libssh2/include ../quickmail
 COMPONENT_PRIV_INCLUDEDIRS := .  genhdr py esp32 lib
 
 BUILD = $(BUILD_DIR_BASE)
@@ -15,6 +18,9 @@ ifneq ($(wildcard $(IDF_PATH)/components/heap/.*),)
 CFLAGS += -DIDF_USEHEAP=1
 endif
 
+ifneq ($(wildcard $(IDF_PATH)/components/driver/sdspi_host.*),)
+CFLAGS += -DIDF_HAS_SDSPIHOST=1
+endif
 
 include $(COMPONENT_PATH)/py/mkenv.mk
 
@@ -38,9 +44,12 @@ FROZEN_MPY_DIR = $(COMPONENT_PATH)/esp32/modules
 #---------------------------------
 ESPCOMP = $(IDF_PATH)/components
 MP_EXTRA_INC += -I.
-#MP_EXTRA_INC += -I$(PROJECT_PATH)/main
 MP_EXTRA_INC += -I$(COMPONENT_PATH)
 MP_EXTRA_INC += -I$(PROJECT_PATH)/components/spiffs
+MP_EXTRA_INC += -I$(PROJECT_PATH)/components/quickmail
+MP_EXTRA_INC += -I$(PROJECT_PATH)/components/curl/include
+MP_EXTRA_INC += -I$(PROJECT_PATH)/components/libssh2/include
+MP_EXTRA_INC += -I$(PROJECT_PATH)/components/zlib
 MP_EXTRA_INC += -I$(COMPONENT_PATH)/py
 MP_EXTRA_INC += -I$(COMPONENT_PATH)/lib/mp-readline
 MP_EXTRA_INC += -I$(COMPONENT_PATH)/lib/netutils
@@ -124,7 +133,6 @@ SRC_C =  $(addprefix esp32/,\
 	uart.c \
 	gccollect.c \
 	mphalport.c \
-	fatfs_port.c \
 	help.c \
 	esponewire.c \
 	modutime.c \
@@ -141,13 +149,24 @@ SRC_C =  $(addprefix esp32/,\
 	modsocket.c \
 	modesp.c \
 	moduhashlib.c \
-	espneopixel.c \
 	machine_hw_spi.c \
 	mpthreadport.c \
 	mpsleep.c \
-	machrtc.c \
+	machine_rtc.c \
 	modymodem.c \
+	esprtcmem.c \
+	moddisplay.c \
+	machine_hw_i2c.c \
+	machine_neopixel.c \
 	)
+
+ifdef CONFIG_MICROPY_USE_CURL
+SRC_C += esp32/modcurl.c
+endif
+
+ifdef CONFIG_MICROPY_USE_SSH
+SRC_C += esp32/modssh.c
+endif
 
 EXTMOD_SRC_C = $(addprefix extmod/,\
 	modbtree.c \
@@ -194,18 +213,20 @@ LIBS_SPIFFS_C = $(addprefix $(PROJECT_PATH)/components/spiffs/,\
 
 LIBS_SRC_C = $(addprefix esp32/libs/,\
 	modonewire.c \
+	espcurl.c \
+	neopixel.c \
+	tft/spi_master_lobo.c \
+	tft/tftspi.c \
+	tft/tft.c \
+	tft/comic24.c \
+	tft/DefaultFont.c \
+	tft/DejaVuSans18.c \
+	tft/DejaVuSans24.c \
+	tft/minya24.c \
+	tft/SmallFont.c \
+	tft/tooney32.c \
+	tft/Ubuntu16.c \
 	)
-
-LIB_SRC_C += \
-	$(ESPCOMP)/fatfs/src/ff.c \
-	$(ESPCOMP)/fatfs/src/diskio_sdmmc.c \
-	$(ESPCOMP)/fatfs/src/diskio_spiflash.c \
-	$(ESPCOMP)/fatfs/src/diskio.c \
-	$(ESPCOMP)/fatfs/src/vfs_fat_sdmmc.c \
-	$(ESPCOMP)/fatfs/src/vfs_fat_spiflash.c \
-	$(ESPCOMP)/fatfs/src/vfs_fat.c \
-	$(ESPCOMP)/fatfs/src/option/syscall.c \
-	$(ESPCOMP)/fatfs/src/option/unicode.c
 
 ifeq ($(MICROPY_PY_BTREE),1)
 LIB_SRC_C += \

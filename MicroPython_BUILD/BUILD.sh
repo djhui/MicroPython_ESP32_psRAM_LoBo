@@ -19,6 +19,10 @@
 #---------------------------------------------------------------------------------------------------------------------
 # Check parameters
 opt="$1"
+if [ "${opt}" == "verbose" ]; then
+    opt = "all"
+    export MP_SHOW_PROGRESS=yes
+fi
 opt2="xx"
 arg="$1"
 buildType="esp2"
@@ -28,6 +32,10 @@ if [ "${opt:0:2}" == "-j" ]; then
     if [ "${opt2}" == "psram" ]; then
         opt2="all"
         buildType="psram"
+    fi
+    if [ "${opt2}" == "verbose" ]; then
+        opt2 = "all"
+        export MP_SHOW_PROGRESS=yes
     fi
     if [ "${opt2}" == "" ]; then
         opt2="all"
@@ -42,6 +50,9 @@ if [ "${opt:0:2}" == "-j" ]; then
         if [ "$3" == "psram" ]; then
             buildType="psram"
         fi
+    fi
+    if [ "$3" == "verbose" ]; then
+        export MP_SHOW_PROGRESS=yes
     fi
 
 elif [ "${opt}" == "makefs" ] || [ "${opt}" == "flashfs" ] || [ "${opt}" == "copyfs" ]; then
@@ -62,6 +73,13 @@ else
         opt=""
         if [ "$2" == "psram" ]; then
             buildType="psram"
+            if [ "$3" == "verbose" ]; then
+                export MP_SHOW_PROGRESS=yes
+            fi
+        else
+            if [ "$2" == "verbose" ]; then
+                export MP_SHOW_PROGRESS=yes
+            fi
         fi
     else
         echo ""
