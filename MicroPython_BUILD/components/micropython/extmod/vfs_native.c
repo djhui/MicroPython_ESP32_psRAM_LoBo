@@ -66,7 +66,7 @@
 
 
 // esp32 partition configuration needed for wear leveling driver
-const esp_partition_t fs_part = {
+static esp_partition_t fs_part = {
     ESP_PARTITION_TYPE_DATA,        //type
     ESP_PARTITION_SUBTYPE_DATA_FAT, //subtype
     MICROPY_INTERNALFS_START,       // address (from mpconfigport.h)
@@ -596,6 +596,17 @@ STATIC esp_err_t vfs_fat_spiflash_mount(const char* base_path, const esp_vfs_fat
     const size_t workbuf_size = 4096;
     void *workbuf = NULL;
 
+    // Check partition start address
+    esp_partition_t *data_partition = (esp_partition_t *)esp_partition_find_first(ESP_PARTITION_TYPE_APP, ESP_PARTITION_SUBTYPE_APP_FACTORY, "MicroPython");
+    if (data_partition != NULL) {
+    	if (fs_part.address < (data_partition->address + data_partition->size)) {
+    		printf("WARNING: FAT partition start address configured in application space!\n");
+    		printf("         Start address changed from 0x%04x to 0x%04x\n", fs_part.address, data_partition->address + data_partition->size);
+    		printf("         Change the start address using menuconfig\n");
+    		fs_part.address = data_partition->address + data_partition->size;
+    	}
+    }
+
     result = wl_mount(&fs_part, wl_handle);
     if (result != ESP_OK) {
         ESP_LOGE(TAG, "Failed to mount wear leveling layer. result = %i", result);
@@ -633,7 +644,7 @@ STATIC esp_err_t vfs_fat_spiflash_mount(const char* base_path, const esp_vfs_fat
             goto fail;
         }
         workbuf = malloc(workbuf_size);
-        ESP_LOGI(TAG, "** Formatting Flash FATFS partition **");
+        ESP_LOGW(TAG, "** Formatting Flash FATFS partition **");
         fresult = f_mkfs(drv, FM_ANY | FM_SFD, workbuf_size, workbuf, workbuf_size);
         if (fresult != FR_OK) {
             result = ESP_FAIL;
@@ -641,7 +652,7 @@ STATIC esp_err_t vfs_fat_spiflash_mount(const char* base_path, const esp_vfs_fat
             goto fail;
         }
         free(workbuf);
-        ESP_LOGI(TAG, "** Mounting again **");
+        ESP_LOGW(TAG, "** Mounting again **");
         fresult = f_mount(fs, drv, 0);
         if (fresult != FR_OK) {
             result = ESP_FAIL;

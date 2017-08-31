@@ -69,6 +69,7 @@ STATIC mp_uint_t stdio_read(mp_obj_t self_in, void *buf, mp_uint_t size, int *er
                 c = '\n';
             }
             ((byte*)buf)[i] = c;
+            c = -1;
         }
         return size;
     } else {

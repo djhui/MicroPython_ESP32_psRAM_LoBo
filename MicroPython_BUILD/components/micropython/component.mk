@@ -7,7 +7,7 @@
 COMPONENT_ADD_INCLUDEDIRS := .  genhdr py esp32 lib lib/utils lib/mp-readline extmod extmod/crypto-algorithms lib/netutils drivers/dht \
 							 lib/timeutils  lib/berkeley-db-1.xx/include lib/berkeley-db-1.xx/btree \
 							 lib/berkeley-db-1.xx/db lib/berkeley-db-1.xx/hash lib/berkeley-db-1.xx/man lib/berkeley-db-1.xx/mpool lib/berkeley-db-1.xx/recno \
-							 ../spiffs ../curl/include ../curl/lib ../zlib ../libssh2/include ../quickmail
+							 ../spiffs ../curl/include ../curl/lib ../zlib ../libssh2/include ../quickmail ../espmqtt/include
 COMPONENT_PRIV_INCLUDEDIRS := .  genhdr py esp32 lib
 
 BUILD = $(BUILD_DIR_BASE)
@@ -50,6 +50,7 @@ MP_EXTRA_INC += -I$(PROJECT_PATH)/components/quickmail
 MP_EXTRA_INC += -I$(PROJECT_PATH)/components/curl/include
 MP_EXTRA_INC += -I$(PROJECT_PATH)/components/libssh2/include
 MP_EXTRA_INC += -I$(PROJECT_PATH)/components/zlib
+MP_EXTRA_INC += -I$(PROJECT_PATH)/components/espmqtt/include
 MP_EXTRA_INC += -I$(COMPONENT_PATH)/py
 MP_EXTRA_INC += -I$(COMPONENT_PATH)/lib/mp-readline
 MP_EXTRA_INC += -I$(COMPONENT_PATH)/lib/netutils
@@ -94,6 +95,7 @@ MP_EXTRA_INC += -I$(ESPCOMP)/app_trace/include
 MP_EXTRA_INC += -I$(ESPCOMP)/sdmmc/include
 MP_EXTRA_INC += -I$(ESPCOMP)/fatfs/src
 MP_EXTRA_INC += -I$(ESPCOMP)/heap/include
+MP_EXTRA_INC += -I$(ESPCOMP)/openssl/include
 
 # CPP macro
 # ------------
@@ -147,7 +149,6 @@ SRC_C =  $(addprefix esp32/,\
 	modmachine.c \
 	modnetwork.c \
 	modsocket.c \
-	modesp.c \
 	moduhashlib.c \
 	machine_hw_spi.c \
 	mpthreadport.c \
@@ -158,6 +159,7 @@ SRC_C =  $(addprefix esp32/,\
 	moddisplay.c \
 	machine_hw_i2c.c \
 	machine_neopixel.c \
+	machine_dht.c \
 	)
 
 ifdef CONFIG_MICROPY_USE_CURL
@@ -166,6 +168,10 @@ endif
 
 ifdef CONFIG_MICROPY_USE_SSH
 SRC_C += esp32/modssh.c
+endif
+
+ifdef CONFIG_MICROPY_USE_MQTT
+SRC_C += esp32/modmqtt.c
 endif
 
 EXTMOD_SRC_C = $(addprefix extmod/,\
@@ -226,6 +232,8 @@ LIBS_SRC_C = $(addprefix esp32/libs/,\
 	tft/SmallFont.c \
 	tft/tooney32.c \
 	tft/Ubuntu16.c \
+	telnet.c \
+	esp_rmt.c \
 	)
 
 ifeq ($(MICROPY_PY_BTREE),1)
@@ -246,10 +254,6 @@ LIB_SRC_C += \
 	lib/berkeley-db-1.xx/mpool/mpool.c
 endif
 
-DRIVERS_SRC_C = $(addprefix drivers/,\
-	dht/dht.c \
-	)
-
 OBJ_MP =
 OBJ_MP += $(PY_O)
 OBJ_MP += $(addprefix $(BUILD)/, $(SRC_C:.c=.o))
@@ -257,7 +261,6 @@ OBJ_MP += $(addprefix $(BUILD)/, $(EXTMOD_SRC_C:.c=.o))
 OBJ_MP += $(addprefix $(BUILD)/, $(LIB_SRC_C:.c=.o))
 OBJ_MP += $(addprefix $(BUILD)/, $(LIBS_SRC_C:.c=.o))
 OBJ_MP += $(addprefix $(BUILD)/, $(LIBS_SPIFFS_C:.c=.o))
-OBJ_MP += $(addprefix $(BUILD)/, $(DRIVERS_SRC_C:.c=.o))
 
 # List of sources for qstr extraction
 # ------------------------------------------------------------------------------

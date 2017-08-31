@@ -96,23 +96,22 @@ menu "MicroPython"
 	        help
 	        Set the maximum number of threads that can run simultaneosly
 
-	    config MICROPY_THREAD_PRIORITY
-	        int "Threads default priority"
-	        depends on MICROPY_USE_THREADS
-	        range 5 20
-	        default 4
-	        help
-	        Set the default priority of the MicroPython threads created using _thread module
-	
 	    config MICROPY_THREAD_STACK_SIZE
 	        int "Threads default stack size (KB)"
 	        depends on MICROPY_USE_THREADS
-	        range 5 32
-	        default 5
+	        range 4 32
+	        default 4
 	        help
 	        Set the default thread stack size
-	        5 KB is currently the minimum supported stack size value to guarantee
+	        4 KB is currently the minimum supported stack size value to guarantee
 	        sufficient stack space for the interpreter itself
+	
+	    config MICROPY_USE_TELNET
+	        bool "Enable Telnet server"
+	        depends on MICROPY_USE_THREADS
+	        default y
+	        help
+	        Enable Telnet server and REPL over telnet
 	
     endmenu
 
@@ -155,6 +154,74 @@ menu "MicroPython"
 	        help
 	        Include SSH module into build
 	
+	    config MICROPY_USE_MQTT
+	        bool "Use Mqtt module"
+	        default n
+	        help
+	        Include Mqtt module into build
+	
+	    menu "MQTT Configuration"
+	        depends on MICROPY_USE_MQTT
+		    config MQTT_PROTOCOL_311
+		        bool "Use protocol version 3.1.1"
+		        default y
+		        help
+			        Use protocol version 3.1.1
+			        If not set, protocol version 3.1.0 is used
+
+		    config MQTT_PRIORITY
+		        int "MQTT task priority"
+		        default MICROPY_TASK_PRIORITY
+		        range 1 20
+		        help
+			        FreeRTOS task priority of the Mqtt task
+			        Default is MicroPython task priority
+
+		    config MQTT_BUFFER_SIZE_BYTE
+		        int "MQTT send/receive buffer size"
+		        default 256
+		        range 256 2048
+		        help
+			        Send/Receive buffer size in bytes
+			        More than buffer size bytes can be received...
+			        Publish payload size is limited to this size.
+			        Keep in mind that 4*CONFIG_MQTT_BUFFER_SIZE_BYTE queue buffer will also be created.
+
+		    config MQTT_MAX_PAYLOAD_SIZE
+		        int "MQTT max payload size"
+		        default 2048
+		        range MQTT_BUFFER_SIZE_BYTE 16384
+		        help
+			        Maximum payload size which can be received
+			        If the payload size is larger, it will be truncated
+
+			config MQTT_LOG_LEVEL
+			    int
+			    default 0 if MQTT_LOG_LEVEL0
+			    default 1 if MQTT_LOG_LEVEL1
+			    default 2 if MQTT_LOG_LEVEL2
+			    default 3 if MQTT_LOG_LEVEL3
+			    default 4 if MQTT_LOG_LEVEL4
+			
+				choice
+				    prompt "Set Mqtt log level"
+				    default MQTT_LOG_LEVEL1
+				    help
+				        Select Log (debug) level
+				
+				    config MQTT_LOG_LEVEL0
+				        bool "None"
+				    config MQTT_LOG_LEVEL1
+				        bool "Error"
+				    config MQTT_LOG_LEVEL2
+				        bool "Warning"
+				    config MQTT_LOG_LEVEL3
+				        bool "Info"
+				    config MQTT_LOG_LEVEL4
+				        bool "Debug"
+				endchoice
+
+	    endmenu
 	endmenu
     menu "File systems"
         config MICROPY_USE_SPIFFS
@@ -170,6 +237,8 @@ menu "MicroPython"
             help
             Starting address of the Flash partition to be used as internal filesystem area
             Use hexadecimal format with leading 0x
+            The starting address must be greter then MicroPython partition end
+            configured in 'partitions_mpy.csv'
 
         config MICROPY_INTERNALFS_SIZE
             int "Filesystem size (KB)"

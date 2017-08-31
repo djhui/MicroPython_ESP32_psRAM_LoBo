@@ -15,3 +15,4 @@ typedef struct _machine_pin_irq_obj_t {
     gpio_num_t id;
 } machine_pin_irq_obj_t;
 
+int machine_pin_get_gpio(mp_obj_t pin_in);

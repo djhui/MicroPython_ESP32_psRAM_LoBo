@@ -137,7 +137,7 @@ STATIC const mp_obj_type_t mp_type_thread_lock = {
 /****************************************************************/
 // _thread module
 
-STATIC size_t thread_stack_size = 0;
+STATIC size_t thread_stack_size = MP_THREAD_DEFAULT_STACK_SIZE;
 
 //------------------------------------------
 STATIC mp_obj_t mod_thread_get_ident(void) {
@@ -147,11 +147,10 @@ STATIC MP_DEFINE_CONST_FUN_OBJ_0(mod_thread_get_ident_obj, mod_thread_get_ident)
 
 //--------------------------------------------------------------------------
 STATIC mp_obj_t mod_thread_stack_size(size_t n_args, const mp_obj_t *args) {
-    mp_obj_t ret = mp_obj_new_int_from_uint(thread_stack_size);
-    if (n_args == 0) {
-        thread_stack_size = 0;
-    } else {
-    	size_t stack_size = mp_obj_get_int(args[0]);;
+    mp_obj_t ret;
+
+    if (n_args > 0) {
+    	size_t stack_size = mp_obj_get_int(args[0]);
         if (stack_size == 0) {
         	stack_size = MP_THREAD_DEFAULT_STACK_SIZE; //use default stack size
         }
@@ -160,6 +159,10 @@ STATIC mp_obj_t mod_thread_stack_size(size_t n_args, const mp_obj_t *args) {
             else if (stack_size > MP_THREAD_MAX_STACK_SIZE) stack_size = MP_THREAD_MAX_STACK_SIZE;
         }
         thread_stack_size = stack_size;
+        ret = mp_obj_new_int_from_uint(thread_stack_size);
+    }
+    else {
+        ret = mp_obj_new_int_from_uint(thread_stack_size);
     }
     return ret;
 }
@@ -420,9 +423,9 @@ STATIC MP_DEFINE_CONST_FUN_OBJ_KW(mod_thread_sendmsg_obj, 2, mod_thread_sendmsg)
 STATIC mp_obj_t mod_thread_getmsg()
 {
 	uint8_t *buf = NULL;
-	int msg_int = 0;
+	uint32_t msg_int = 0;
 	int res = 0;
-	int buflen = 0;
+	uint32_t buflen = 0;
 	uintptr_t sender = 0;
     mp_obj_t tuple[3];
 
@@ -475,30 +478,50 @@ STATIC MP_DEFINE_CONST_FUN_OBJ_0(mod_thread_getSelfname_obj, mod_thread_getSelfn
 
 //-----------------------------------------------------------------------
 STATIC mp_obj_t mod_thread_list(mp_uint_t n_args, const mp_obj_t *args) {
-	int prn = 1;
+	int prn = 1, n = 0;
     if (n_args > 0) prn = mp_obj_is_true(args[0]);
 
 	thread_list_t list = {0, NULL};
 
-	uint32_t num = mp_thread_list(&list, prn);
+	uint32_t num = mp_thread_list(&list);
 
-	if ((num == 0) || (prn) || list.threads == NULL) return mp_const_none;
+	if ((num == 0) || (list.threads == NULL)) return mp_const_none;
 
-	mp_obj_t thr_info[3];
-	mp_obj_t tuple[num];
-	int n = 0;
 	threadlistitem_t *thr = NULL;
-	for (n=0; n<num; n++) {
-		thr = list.threads + (sizeof(threadlistitem_t) * n);
-		thr_info[0] = mp_obj_new_int(thr->id);
-		thr_info[1] = mp_obj_new_str(thr->name, strlen(thr->name), false);
-		if (thr->suspended) thr_info[2] = mp_const_true;
-		else thr_info[2] = mp_const_false;
-		tuple[n] = mp_obj_new_tuple(3, thr_info);
-	}
-	free(list.threads);
+	if (prn) {
+		for (n=0; n<num; n++) {
+			thr = list.threads + (sizeof(threadlistitem_t) * n);
+			char th_type[8] = {'\0'};
+			if (thr->type == THREAD_TYPE_MAIN) sprintf(th_type, "MAIN");
+			else if (thr->type == THREAD_TYPE_PYTHON) sprintf(th_type, "PYTHON");
+			else if (thr->type == THREAD_TYPE_SERVICE) sprintf(th_type, "SERVICE");
+			else sprintf(th_type, "Unknown");
 
-    return mp_obj_new_tuple(n, tuple);
+			mp_printf(&mp_plat_print, "ID=%u, Name: %s, State: %s, Stack=%d, MaxUsed=%d, Type: %s\n",
+					thr->id, thr->name, (thr->suspended ? "suspended" : "running"), thr->stack_len,
+					thr->stack_max, th_type);
+		}
+		free(list.threads);
+		return mp_const_none;
+	}
+	else {
+		mp_obj_t thr_info[6];
+		mp_obj_t tuple[num];
+		for (n=0; n<num; n++) {
+			thr = list.threads + (sizeof(threadlistitem_t) * n);
+			thr_info[0] = mp_obj_new_int(thr->id);
+			thr_info[1] = mp_obj_new_int(thr->type);
+			thr_info[2] = mp_obj_new_str(thr->name, strlen(thr->name), false);
+			if (thr->suspended) thr_info[3] = mp_const_true;
+			else thr_info[3] = mp_const_false;
+			thr_info[4] = mp_obj_new_int(thr->stack_len);
+			thr_info[5] = mp_obj_new_int(thr->stack_max);
+			tuple[n] = mp_obj_new_tuple(6, thr_info);
+		}
+		free(list.threads);
+
+		return mp_obj_new_tuple(n, tuple);
+	}
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_thread_list_obj, 0, 1, mod_thread_list);
 
@@ -538,6 +561,13 @@ STATIC const mp_rom_map_elem_t mp_module_thread_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_list), MP_ROM_PTR(&mod_thread_list_obj) },
     { MP_ROM_QSTR(MP_QSTR_getThreadName), MP_ROM_PTR(&mod_thread_getname_obj) },
     { MP_ROM_QSTR(MP_QSTR_getSelfName), MP_ROM_PTR(&mod_thread_getSelfname_obj) },
+	// Constants
+	{ MP_ROM_QSTR(MP_QSTR_PAUSE), MP_ROM_INT(THREAD_NOTIFY_PAUSE) },
+	{ MP_ROM_QSTR(MP_QSTR_SUSPEND), MP_ROM_INT(THREAD_NOTIFY_PAUSE) },
+	{ MP_ROM_QSTR(MP_QSTR_RESUME), MP_ROM_INT(THREAD_NOTIFY_RESUME) },
+	{ MP_ROM_QSTR(MP_QSTR_EXIT), MP_ROM_INT(THREAD_NOTIFY_EXIT) },
+	{ MP_ROM_QSTR(MP_QSTR_STOP), MP_ROM_INT(THREAD_NOTIFY_EXIT) },
+	{ MP_ROM_QSTR(MP_QSTR_STATUS), MP_ROM_INT(THREAD_NOTIFY_STATUS) },
 };
 STATIC MP_DEFINE_CONST_DICT(mp_module_thread_globals, mp_module_thread_globals_table);
 

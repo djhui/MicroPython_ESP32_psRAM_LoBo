@@ -126,11 +126,13 @@ class SSD1306_I2C(SSD1306):
 
 
 class SSD1306_SPI(SSD1306):
-    def __init__(self, width, height, spi, dc, res, cs, external_vcc=False):
-        self.rate = 10 * 1024 * 1024
+    def __init__(self, width, height, spi, dc, res=None, cs=None, external_vcc=False):
+        self.rate = 10 * 1000 * 1000
         dc.init(dc.OUT, value=0)
-        res.init(res.OUT, value=0)
-        cs.init(cs.OUT, value=1)
+        if res:
+            res.init(res.OUT, value=0)
+        if cs:
+            cs.init(cs.OUT, value=1)
         self.spi = spi
         self.dc = dc
         self.res = res
@@ -138,24 +140,31 @@ class SSD1306_SPI(SSD1306):
         super().__init__(width, height, external_vcc)
 
     def write_cmd(self, cmd):
-        self.spi.init(baudrate=self.rate, polarity=0, phase=0)
-        self.cs(1)
+        #self.spi.init(baudrate=self.rate, polarity=0, phase=0)
+        if self.cs:
+            self.cs(1)
         self.dc(0)
-        self.cs(0)
+        if self.cs:
+            self.cs(0)
         self.spi.write(bytearray([cmd]))
-        self.cs(1)
+        if self.cs:
+            self.cs(1)
 
     def write_data(self, buf):
-        self.spi.init(baudrate=self.rate, polarity=0, phase=0)
-        self.cs(1)
+        #self.spi.init(baudrate=self.rate, polarity=0, phase=0)
+        if self.cs:
+            self.cs(1)
         self.dc(1)
-        self.cs(0)
+        if self.cs:
+            self.cs(0)
         self.spi.write(buf)
-        self.cs(1)
+        if self.cs:
+            self.cs(1)
 
     def poweron(self):
-        self.res(1)
-        time.sleep_ms(1)
-        self.res(0)
-        time.sleep_ms(10)
-        self.res(1)
+        if self.res:
+            self.res(1)
+            time.sleep_ms(1)
+            self.res(0)
+            time.sleep_ms(10)
+            self.res(1)

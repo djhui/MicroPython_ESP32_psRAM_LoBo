@@ -42,7 +42,7 @@ __attribute__((always_inline)) static inline uint32_t mp_hal_ticks_cpu(void) {
 }
 
 int mp_hal_stdin_rx_chr(uint32_t timeout);
-void mp_hal_stdout_tx_char(char c);
+//void mp_hal_stdout_tx_char(char c);
 void mp_hal_stdout_tx_str(const char *str);
 void mp_hal_stdout_tx_strn(const char *str, uint32_t len);
 void mp_hal_stdout_tx_strn_cooked(const char *str, uint32_t len);

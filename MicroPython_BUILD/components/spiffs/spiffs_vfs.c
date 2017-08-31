@@ -57,6 +57,7 @@
 #include "esp_vfs.h"
 #include "esp_attr.h"
 #include <errno.h>
+#include "esp_partition.h"
 
 #include "extmod/vfs_native.h"
 #include <spiffs_vfs.h>
@@ -770,7 +771,18 @@ int spiffs_mount() {
     printf("\nMounting SPIFFS files system\n");
 	#endif
 
-    cfg.phys_addr 		 = CONFIG_MICROPY_INTERNALFS_START;
+    uint32_t part_start = CONFIG_MICROPY_INTERNALFS_START;
+    esp_partition_t *data_partition = (esp_partition_t *)esp_partition_find_first(ESP_PARTITION_TYPE_APP, ESP_PARTITION_SUBTYPE_APP_FACTORY, "MicroPython");
+    if (data_partition != NULL) {
+    	if (part_start < (data_partition->address + data_partition->size)) {
+    		printf("WARNING: SPIFFS partition start address configured in application space!\n");
+    		printf("         Start address changed from 0x%04x to 0x%04x\n", part_start, data_partition->address + data_partition->size);
+    		printf("         Change the start address using menuconfig\n");
+    		part_start = data_partition->address + data_partition->size;
+    	}
+    }
+
+    cfg.phys_addr 		 = part_start;
     cfg.phys_size 		 = CONFIG_MICROPY_INTERNALFS_SIZE*1024;
     cfg.phys_erase_block = SPIFFS_ERASE_SIZE;
     cfg.log_page_size    = SPIFFS_LOG_PAGE_SIZE;

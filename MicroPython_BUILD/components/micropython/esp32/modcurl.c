@@ -311,7 +311,7 @@ STATIC mp_obj_t curl_sendmail(size_t n_args, const mp_obj_t *pos_args, mp_map_t 
     enum { ARG_user, ARG_pass, ARG_to, ARG_subject, ARG_msg, ARG_cc, ARG_attach, ARG_server, ARG_port, ARG_prot };
 	const mp_arg_t allowed_args[] = {
         { MP_QSTR_user,     MP_ARG_REQUIRED | MP_ARG_OBJ, { .u_obj = mp_const_none } },
-        { MP_QSTR_pass,     MP_ARG_REQUIRED | MP_ARG_OBJ, { .u_obj = mp_const_none } },
+        { MP_QSTR_password, MP_ARG_REQUIRED | MP_ARG_OBJ, { .u_obj = mp_const_none } },
         { MP_QSTR_to,       MP_ARG_REQUIRED | MP_ARG_OBJ, { .u_obj = mp_const_none } },
         { MP_QSTR_subject,  MP_ARG_REQUIRED | MP_ARG_OBJ, { .u_obj = mp_const_none } },
         { MP_QSTR_msg,      MP_ARG_REQUIRED | MP_ARG_OBJ, { .u_obj = mp_const_none } },
@@ -432,7 +432,7 @@ STATIC mp_obj_t curl_sendmail(size_t n_args, const mp_obj_t *pos_args, mp_map_t 
 	quickmail_cleanup();
 
 	if (errmsg) {
-		if (quickmail_verbose) printf("ERROR: %s\n", errmsg);
+		if (quickmail_verbose) mp_printf(&mp_plat_print, "ERROR: %s\n", errmsg);
 		return mp_const_false;
 	}
 	return mp_const_true;
@@ -448,10 +448,10 @@ STATIC mp_obj_t curl_FTP_helper(size_t n_args, const mp_obj_t *pos_args, mp_map_
 	checkConnection();
     enum { ARG_url, ARG_user, ARG_pass, ARG_file };
 	const mp_arg_t allowed_args[] = {
-        { MP_QSTR_url,  MP_ARG_REQUIRED | MP_ARG_OBJ, { .u_obj = mp_const_none } },
-        { MP_QSTR_user, MP_ARG_REQUIRED | MP_ARG_OBJ, { .u_obj = mp_const_none } },
-        { MP_QSTR_pass, MP_ARG_REQUIRED | MP_ARG_OBJ, { .u_obj = mp_const_none } },
-        { MP_QSTR_file,                   MP_ARG_OBJ, { .u_obj = mp_const_none } },
+        { MP_QSTR_url,  	MP_ARG_REQUIRED | MP_ARG_OBJ, { .u_obj = mp_const_none } },
+        { MP_QSTR_user, 	MP_ARG_REQUIRED | MP_ARG_OBJ, { .u_obj = mp_const_none } },
+        { MP_QSTR_password,	MP_ARG_REQUIRED | MP_ARG_OBJ, { .u_obj = mp_const_none } },
+        { MP_QSTR_file,                       MP_ARG_OBJ, { .u_obj = mp_const_none } },
     };
 
     mp_arg_val_t args[MP_ARRAY_SIZE(allowed_args)];

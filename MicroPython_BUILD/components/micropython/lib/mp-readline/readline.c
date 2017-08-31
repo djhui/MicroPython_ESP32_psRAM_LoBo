@@ -425,7 +425,7 @@ STATIC void check_notifications(const char *prompt)
 {
 	if (mp_thread_replAcceptMsg(-1) == 0) return;
 
-	int msg_int, msg_buflen;
+	uint32_t msg_int, msg_buflen;
     uint8_t *msg_buf = NULL;
     uint32_t from_th;
     char th_name[THREAD_NAME_MAX_SIZE];

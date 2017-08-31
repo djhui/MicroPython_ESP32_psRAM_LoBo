@@ -46,10 +46,12 @@ class Editor:
     "\x0b" : 0xfffd,
     "\x1b[M" : 0x1b,
     }
+
     yank_buffer = []
     find_pattern = ""
     case = "n"
     replc_pattern = ""
+
     def __init__(self, tab_size, undo_limit):
         self.top_line = self.cur_line = self.row = self.col = self.margin = 0
         self.tab_size = tab_size
@@ -62,55 +64,54 @@ class Editor:
         self.autoindent = "y"
         self.mark = None
         self.write_tabs = "n"
-    if sys.platform in ("WiPy", "LoPy", "esp8266", "esp32"):
-        def wr(self, s):
-            sys.stdout.write(s)
-        def rd_any(self):
-            try:
-                if sys.platform == "esp8266" and Editor.uart.any():
-                    return True
-            except:
-                pass
-            return False
-        def rd(self):
-            while True:
-                try: return sys.stdin.read(1)
-                except KeyboardInterrupt: return '\x03'
-        @staticmethod
-        def init_tty(device, baud):
-            if sys.platform == "esp8266" :
-                from machine import UART
-                Editor.uart = UART(0)
-        @staticmethod
-        def deinit_tty():
-            pass
+
+    def wr(self, s):
+        sys.stdout.write(s)
+
+    def rd_any(self):
+        return False
+
+    def rd(self):
+        while True:
+            try: return sys.stdin.read(1)
+            except KeyboardInterrupt: return '\x03'
+
+
     def goto(self, row, col):
         self.wr("\x1b[{};{}H".format(row + 1, col + 1))
+
     def clear_to_eol(self):
         self.wr("\x1b[0K")
+
     def cursor(self, onoff):
         self.wr("\x1b[?25h" if onoff else "\x1b[?25l")
+
     def hilite(self, mode):
         if mode == 1: 
-            self.wr("\x1b[1;47m")
+            #self.wr("\x1b[1;47m") #white background
+            self.wr("\x1b[1m")
         elif mode == 2: 
-            self.wr("\x1b[43m")
+            self.wr("\x1b[43m")   # yellow
         else: 
             self.wr("\x1b[0m")
     def mouse_reporting(self, onoff):
         self.wr('\x1b[?9h' if onoff else '\x1b[?9l') 
+
     def scroll_region(self, stop):
         self.wr('\x1b[1;{}r'.format(stop) if stop else '\x1b[r') 
+
     def scroll_up(self, scrolling):
         Editor.scrbuf[scrolling:] = Editor.scrbuf[:-scrolling]
         Editor.scrbuf[:scrolling] = [''] * scrolling
         self.goto(0, 0)
         self.wr("\x1bM" * scrolling)
+
     def scroll_down(self, scrolling):
         Editor.scrbuf[:-scrolling] = Editor.scrbuf[scrolling:]
         Editor.scrbuf[-scrolling:] = [''] * scrolling
         self.goto(Editor.height - 1, 0)
         self.wr("\x1bD " * scrolling)
+
     def get_screen_size(self):
         self.wr('\x1b[999;999H\x1b[6n')
         pos = ''
@@ -119,6 +120,7 @@ class Editor:
             pos += char
             char = self.rd()
         return [int(i, 10) for i in pos.lstrip("\n\x1b[").split(';')]
+
     def redraw(self, flag):
         self.cursor(False)
         Editor.height, Editor.width = self.get_screen_size()
@@ -130,6 +132,7 @@ class Editor:
         if sys.implementation.name == "micropython":
             gc.collect()
             if flag: self.message = "{} Bytes Memory available".format(gc.mem_free())
+
     def get_input(self): 
         while True:
             in_buffer = self.rd()
@@ -155,6 +158,7 @@ class Editor:
                         return 0x1b, [mouse_x, mouse_y, mouse_fct] 
             elif ord(in_buffer[0]) >= 32:
                 return 0, in_buffer
+
     def display_window(self): 
         self.cur_line = min(self.total_lines - 1, max(self.cur_line, 0))
         self.col = max(0, min(self.col, len(self.content[self.cur_line])))
@@ -195,12 +199,15 @@ class Editor:
         self.hilite(0)
         self.goto(self.row, self.col - self.margin)
         self.cursor(True)
+
     def spaces(self, line, pos = None): 
         return (len(line) - len(line.lstrip(" ")) if pos == None else 
                 len(line[:pos]) - len(line[:pos].rstrip(" ")))
+
     def line_range(self):
         return ((self.mark, self.cur_line + 1) if self.mark < self.cur_line else
                 (self.cur_line, self.mark + 1))
+
     def line_edit(self, prompt, default): 
         push_msg = lambda msg: self.wr(msg + "\b" * len(msg)) 
         self.goto(Editor.height, 0)
@@ -254,6 +261,7 @@ class Editor:
                     self.wr(res[pos])
                     pos += len(char)
                     push_msg(res[pos:]) 
+
     def find_in_file(self, pattern, col, end):
         try: from ure import compile
         except: from re import compile
@@ -281,6 +289,7 @@ class Editor:
         else:
             self.message = pattern + " not found"
             return -1
+
     def undo_add(self, lnum, text, key, span = 1):
         self.changed = '*'
         if self.undo_limit > 0 and (
@@ -289,6 +298,7 @@ class Editor:
                 del self.undo[0]
                 self.undo_zero -= 1
             self.undo.append([lnum, span, text, key, self.col])
+
     def delete_lines(self, yank): 
         lrange = self.line_range()
         if yank:
@@ -301,6 +311,7 @@ class Editor:
         self.total_lines = len(self.content)
         self.cur_line = lrange[0]
         self.mark = None 
+
     def handle_edit_keys(self, key, char): 
         l = self.content[self.cur_line]
         if key == 0x0d:
@@ -569,6 +580,7 @@ class Editor:
                 self.mark = None
         elif key == 0x05:
             self.redraw(True)
+
     def edit_loop(self): 
         if not self.content: 
             self.content = [""]
@@ -594,6 +606,7 @@ class Editor:
                 return key
             else:
                 self.handle_edit_keys(key, char)
+
     def packtabs(self, s):
         try: from uio import StringIO
         except: from _io import StringIO
@@ -605,6 +618,7 @@ class Editor:
                 sb.write(cr + "\t") 
             else: sb.write(c)
         return sb.getvalue()
+
     def get_file(self, fname):
         from os import listdir
         try: from uos import stat
@@ -623,6 +637,7 @@ class Editor:
                 for i, l in enumerate(self.content):
                     self.content[i] = expandtabs(l.rstrip('\r\n\t '))
                 self.write_tabs = Editor.tab_seen
+
     def put_file(self, fname):
         if True:
             from uos import remove, rename
@@ -636,6 +651,7 @@ class Editor:
         try: remove(fname)
         except: pass
         rename(tmpfile, fname)
+
 def expandtabs(s):
     try: from uio import StringIO
     except: from _io import StringIO
@@ -653,6 +669,7 @@ def expandtabs(s):
         return sb.getvalue()
     else:
         return s
+
 def pye(*content, tab_size = 4, undo = 50, device = 0, baud = 115200):
     gc.collect() 
     slot = [Editor(tab_size, undo)]
@@ -668,7 +685,7 @@ def pye(*content, tab_size = 4, undo = 50, device = 0, baud = 115200):
             elif type(f) == list and len(f) > 0 and type(f[0]) == str:
                 slot[index].content = f 
             index += 1
-    Editor.init_tty(device, baud)
+
     while True:
         try:
             index %= len(slot)
@@ -685,6 +702,5 @@ def pye(*content, tab_size = 4, undo = 50, device = 0, baud = 115200):
                 index += 1
         except Exception as err:
             slot[index].message = "{!r}".format(err)
-    Editor.deinit_tty()
     Editor.yank_buffer = []
     return slot[0].content if (slot[0].fname == "") else slot[0].fname

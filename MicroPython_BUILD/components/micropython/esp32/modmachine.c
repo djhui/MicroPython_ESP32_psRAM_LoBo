@@ -51,7 +51,6 @@
 #include "extmod/machine_mem.h"
 #include "extmod/machine_signal.h"
 #include "extmod/machine_pulse.h"
-#include "extmod/machine_i2c.h"
 #include "modmachine.h"
 #include "mpsleep.h"
 #include "machine_rtc.h"
@@ -336,13 +335,13 @@ STATIC const mp_rom_map_elem_t machine_module_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_TouchPad), MP_ROM_PTR(&machine_touchpad_type) },
     { MP_ROM_QSTR(MP_QSTR_ADC), MP_ROM_PTR(&machine_adc_type) },
     { MP_ROM_QSTR(MP_QSTR_DAC), MP_ROM_PTR(&machine_dac_type) },
-    { MP_ROM_QSTR(MP_QSTR_swI2C), MP_ROM_PTR(&machine_i2c_type) },
-    { MP_ROM_QSTR(MP_QSTR_hwI2C), MP_ROM_PTR(&machine_hw_i2c_type) },
+    { MP_ROM_QSTR(MP_QSTR_I2C), MP_ROM_PTR(&machine_hw_i2c_type) },
     { MP_ROM_QSTR(MP_QSTR_PWM), MP_ROM_PTR(&machine_pwm_type) },
     { MP_ROM_QSTR(MP_QSTR_SPI), MP_ROM_PTR(&machine_hw_spi_type) },
     { MP_ROM_QSTR(MP_QSTR_UART), MP_ROM_PTR(&machine_uart_type) },
     { MP_OBJ_NEW_QSTR(MP_QSTR_RTC), MP_ROM_PTR(&mach_rtc_type) },
     { MP_OBJ_NEW_QSTR(MP_QSTR_Neopixel), MP_ROM_PTR(&machine_neopixel_type) },
+    { MP_OBJ_NEW_QSTR(MP_QSTR_DHT), MP_ROM_PTR(&machine_dht_type) },
 };
 STATIC MP_DEFINE_CONST_DICT(machine_module_globals, machine_module_globals_table);
 

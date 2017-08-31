@@ -51,8 +51,15 @@
 #include "py/mpthread.h"
 #include "mpthreadport.h"
 
-#include "sdkconfig.h"
+#ifdef CONFIG_MICROPY_USE_TELNET
+#include "libs/telnet.h"
+#include "tcpip_adapter.h"
+#include "esp_wifi_types.h"
 
+extern TaskHandle_t TelnetTaskHandle;
+#endif
+
+#include "sdkconfig.h"
 
 extern int MainTaskCore;
 
@@ -73,7 +80,7 @@ typedef struct _thread_t {
     QueueHandle_t threadQueue;			// queue used for inter thread communication
     int allow_suspend;
     int suspended;
-
+    uint32_t type;
     struct _thread_t *next;
 } thread_t;
 
@@ -97,6 +104,7 @@ void mp_thread_preinit(void *stack, uint32_t stack_len) {
     thread->threadQueue = xQueueCreate( THREAD_QUEUE_MAX_ITEMS, sizeof(thread_msg_t) );
     thread->allow_suspend = 0;
     thread->suspended = 0;
+    thread->type = THREAD_TYPE_MAIN;
     thread->next = NULL;
     MainTaskHandle = thread->id;
 }
@@ -110,6 +118,9 @@ void mp_thread_init(void) {
 void mp_thread_gc_others(void) {
     mp_thread_mutex_lock(&thread_mutex, 1);
     for (thread_t *th = thread; th != NULL; th = th->next) {
+    	if (th->type == THREAD_TYPE_SERVICE) {
+    		continue;
+    	}
         gc_collect_root((void**)&th, 1);
         gc_collect_root(&th->arg, 1); // probably not needed
         if (th->id == xTaskGetCurrentTaskHandle()) {
@@ -157,6 +168,48 @@ STATIC void freertos_entry(void *arg) {
     //for (;;);
 }
 
+//-----------------------------------------------------------------------------------------------------------
+TaskHandle_t mp_thread_create_service(TaskFunction_t pxTaskCode, size_t stack_size, int priority, char *name)
+{
+    // Check thread stack size
+    if (stack_size == 0) {
+    	stack_size = MP_THREAD_DEFAULT_STACK_SIZE; //use default stack size
+    }
+    else {
+        if (stack_size < MP_THREAD_MIN_SERVICE_STACK_SIZE) stack_size = MP_THREAD_MIN_STACK_SIZE;
+        else if (stack_size > MP_THREAD_MAX_STACK_SIZE) stack_size = MP_THREAD_MAX_STACK_SIZE;
+    }
+
+    thread_t *th = m_new_obj(thread_t);
+    TaskHandle_t thread_ID;
+    mp_thread_mutex_lock(&thread_mutex, 1);
+
+    // create thread task pinned to the same core as the main task
+	xTaskCreatePinnedToCore(pxTaskCode, name, stack_size, NULL, priority, &thread_ID, MainTaskCore);
+    if (thread_ID == NULL) {
+        mp_thread_mutex_unlock(&thread_mutex);
+        return NULL;
+    }
+
+    // add thread to linked list of all threads
+    th->id = thread_ID;
+    th->ready = 1;
+    th->arg = NULL;
+    th->stack = NULL;
+    th->tcb = NULL;
+    th->stack_len = stack_size;
+    th->next = thread;
+    snprintf(th->name, THREAD_NAME_MAX_SIZE, name);
+    th->threadQueue = NULL;
+    th->allow_suspend = 0;
+    th->suspended = 0;
+    th->type = THREAD_TYPE_SERVICE;
+    thread = th;
+
+    mp_thread_mutex_unlock(&thread_mutex);
+    return thread_ID;
+}
+
 //--------------------------------------------------------------------------------------------------------------
 TaskHandle_t mp_thread_create_ex(void *(*entry)(void*), void *arg, size_t *stack_size, int priority, char *name)
 {
@@ -184,7 +237,7 @@ TaskHandle_t mp_thread_create_ex(void *(*entry)(void*), void *arg, size_t *stack
     StackType_t *stack = NULL;
 
     tcb = malloc(sizeof(StaticTask_t));
-    stack = malloc(*stack_size);
+    stack = malloc(*stack_size+256);
 
     thread_t *th = m_new_obj(thread_t);
 
@@ -192,14 +245,14 @@ TaskHandle_t mp_thread_create_ex(void *(*entry)(void*), void *arg, size_t *stack
 
     // create thread task pinned to the same core as the main task
     //ToDo: Check if it can run on different core
-    TaskHandle_t id = xTaskCreateStaticPinnedToCore(freertos_entry, name, *stack_size / sizeof(StackType_t), arg, priority, stack, tcb, MainTaskCore);
+    TaskHandle_t id = xTaskCreateStaticPinnedToCore(freertos_entry, name, *stack_size, arg, priority, stack, tcb, MainTaskCore);
     if (id == NULL) {
         mp_thread_mutex_unlock(&thread_mutex);
         nlr_raise(mp_obj_new_exception_msg(&mp_type_OSError, "can't create thread"));
     }
 
     // adjust the stack_size to provide room to recover from hitting the limit
-    *stack_size -= 1024;
+    //*stack_size -= 1024;
 
     // add thread to linked list of all threads
     th->id = id;
@@ -207,12 +260,13 @@ TaskHandle_t mp_thread_create_ex(void *(*entry)(void*), void *arg, size_t *stack
     th->arg = arg;
     th->stack = stack;
     th->tcb = tcb;
-    th->stack_len = *stack_size / sizeof(StackType_t);
+    th->stack_len = *stack_size;
     th->next = thread;
     snprintf(th->name, THREAD_NAME_MAX_SIZE, name);
     th->threadQueue = xQueueCreate( THREAD_QUEUE_MAX_ITEMS, sizeof(thread_msg_t) );
     th->allow_suspend = 0;
     th->suspended = 0;
+    th->type = THREAD_TYPE_PYTHON;
     thread = th;
 
     mp_thread_mutex_unlock(&thread_mutex);
@@ -227,17 +281,19 @@ void *mp_thread_create(void *(*entry)(void*), void *arg, size_t *stack_size, cha
 //---------------------------------------
 STATIC void mp_clean_thread(thread_t *th)
 {
-    int n = 1;
-    while (n) {
-    	n = uxQueueMessagesWaiting(th->threadQueue);
-    	if (n) {
-    		thread_msg_t msg;
-    		xQueueReceive(th->threadQueue, &msg, 0);
-    		if (msg.strdata != NULL) free(msg.strdata);
-    	}
-    }
-    if (th->threadQueue) vQueueDelete(th->threadQueue);
-    th->threadQueue = NULL;
+	if (th->threadQueue) {
+		int n = 1;
+		while (n) {
+			n = uxQueueMessagesWaiting(th->threadQueue);
+			if (n) {
+				thread_msg_t msg;
+				xQueueReceive(th->threadQueue, &msg, 0);
+				if (msg.strdata != NULL) free(msg.strdata);
+			}
+		}
+		if (th->threadQueue) vQueueDelete(th->threadQueue);
+		th->threadQueue = NULL;
+	}
     th->ready = 0;
     if (th->tcb) free(th->tcb);
     if (th->stack) free(th->stack);
@@ -466,13 +522,13 @@ int mp_thread_getname(TaskHandle_t id, char *name) {
     return res;
 }
 
-//---------------------------------------------------------------------------------------
-int mp_thread_semdmsg(TaskHandle_t id, int type, int msg_int, uint8_t *buf, int buflen) {
+//-------------------------------------------------------------------------------------------------
+int mp_thread_semdmsg(TaskHandle_t id, int type, uint32_t msg_int, uint8_t *buf, uint32_t buflen) {
 	int res = 0;
     mp_thread_mutex_lock(&thread_mutex, 1);
     for (thread_t *th = thread; th != NULL; th = th->next) {
-        // don't send to the current task
-        if (th->id == xTaskGetCurrentTaskHandle()) {
+        // don't send to the current task or service thread
+        if ((th->id == xTaskGetCurrentTaskHandle()) || (th->type == THREAD_TYPE_SERVICE)) {
             continue;
         }
         if ((id == 0) || (th->id == id)) {
@@ -510,13 +566,13 @@ int mp_thread_semdmsg(TaskHandle_t id, int type, int msg_int, uint8_t *buf, int 
     return res;
 }
 
-//--------------------------------------------------------------------------------
-int mp_thread_getmsg(int *msg_int, uint8_t **buf, int *buflen, uint32_t *sender) {
+//------------------------------------------------------------------------------------------
+int mp_thread_getmsg(uint32_t *msg_int, uint8_t **buf, uint32_t *buflen, uint32_t *sender) {
 	int res = 0;
     mp_thread_mutex_lock(&thread_mutex, 1);
     for (thread_t *th = thread; th != NULL; th = th->next) {
         // get message for current task
-        if (th->id == xTaskGetCurrentTaskHandle()) {
+        if ((th->id == xTaskGetCurrentTaskHandle()) && (th->type != THREAD_TYPE_SERVICE)) {
         	if (th->threadQueue == NULL) break;
 
         	thread_msg_t msg;
@@ -544,34 +600,40 @@ int mp_thread_getmsg(int *msg_int, uint8_t **buf, int *buflen, uint32_t *sender)
     return res;
 }
 
-//------------------------------------------------
-int mp_thread_list(thread_list_t *list, int prn) {
+//---------------------------------------
+int mp_thread_list(thread_list_t *list) {
 	int num = 0;
 
     mp_thread_mutex_lock(&thread_mutex, 1);
 
     for (thread_t *th = thread; th != NULL; th = th->next) {
     	num++;
-		if (prn) printf("ID=%u, Name: %s, State: %s, Stack=%d\n",
-				(uint32_t)th->id, th->name, (th->suspended ? "suspended" : "running"), th->stack_len);
     }
-    if ((num == 0) || (prn) || (list == NULL)) {
+    if ((num == 0) || (list == NULL)) {
         mp_thread_mutex_unlock(&thread_mutex);
     	return num;
     }
 
 	list->nth = num;
-	list->threads = malloc(sizeof(threadlistitem_t) * num);
+	list->threads = malloc(sizeof(threadlistitem_t) * (num+1));
 	if (list->threads == NULL) num = 0;
 	else {
 		int nth = 0;
 		threadlistitem_t *thr = NULL;
+		uint32_t min_stack;
 		for (thread_t *th = thread; th != NULL; th = th->next) {
 			thr = list->threads + (sizeof(threadlistitem_t) * nth);
+	        if (th->id == xTaskGetCurrentTaskHandle()) min_stack = uxTaskGetStackHighWaterMark(NULL);
+	        else min_stack = uxTaskGetStackHighWaterMark(th->id);
+
 			thr->id = (uint32_t)th->id;
 			sprintf(thr->name, "%s", th->name);
 			thr->suspended = th->suspended;
+			thr->type = th->type;
+			thr->stack_len = th->stack_len;
+			thr->stack_max = th->stack_len - min_stack;
 			nth++;
+			if (nth > num) break;
 		}
 		if (nth != num) {
 			free(list->threads);
@@ -599,6 +661,67 @@ int mp_thread_replAcceptMsg(int8_t accept) {
 
     return res;
 }
+
+
+// ===== SERVICE THREADS ==============================================
+
+#ifdef CONFIG_MICROPY_USE_TELNET
+//===================================
+void telnet_task (void *pvParameters)
+{
+	// Initialize telnet, create rx buffer and mutex
+	telnet_init();
+
+	// Set user name and password
+    strcpy (telnet_user, TELNET_DEF_USER);
+    strcpy (telnet_pass, TELNET_DEF_PASS);
+
+    // Check if WiFi connection is available
+    tcpip_adapter_ip_info_t info;
+    tcpip_adapter_get_ip_info(WIFI_IF_STA, &info);
+    while (info.ip.addr == 0) {
+        vTaskDelay(1000 / portTICK_PERIOD_MS);
+        tcpip_adapter_get_ip_info(WIFI_IF_STA, &info);
+    }
+
+    // We have WiFi connection, enable telnet
+    telnet_enable();
+
+    while (1) {
+        if (!telnet_run()) {
+        	printf("\n[Telnet] Run Error\n");
+        	break;
+        }
+
+        vTaskDelay(1);
+
+        // ---- Check if WiFi is still available ----
+        tcpip_adapter_get_ip_info(WIFI_IF_STA, &info);
+        if (info.ip.addr == 0) {
+            bool was_enabled = telnet_isenabled();
+            telnet_disable();
+			while (info.ip.addr == 0) {
+				vTaskDelay(100 / portTICK_PERIOD_MS);
+				tcpip_adapter_get_ip_info(WIFI_IF_STA, &info);
+			}
+		    if (was_enabled) telnet_enable();
+        }
+        // ------------------------------------------
+    }
+
+    telnet_disable();
+    telnet_deinit();
+	printf("\n[Telnet] Task terminated!\n");
+    vTaskDelete(NULL);
+}
+
+//-----------------------------------------------------
+uintptr_t mp_thread_createTelnetTask(size_t stack_size)
+{
+    if (TelnetTaskHandle == NULL) TelnetTaskHandle = mp_thread_create_service(&telnet_task, stack_size, CONFIG_MICROPY_TASK_PRIORITY, "Telnet");
+    return (uintptr_t)TelnetTaskHandle;
+}
+#endif
 
 
 #else

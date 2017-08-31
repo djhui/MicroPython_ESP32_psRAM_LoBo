@@ -44,6 +44,7 @@
 #include "sdkconfig.h"
 #include "esp_attr.h"
 #include "esp_log.h"
+#include "esprtcmem.h"
 #include "rom/ets_sys.h"
 #include "rom/uart.h"
 #include "soc/soc.h"
@@ -345,6 +346,66 @@ STATIC mp_obj_t machine_rtc_wake_on_ext1(size_t n_args, const mp_obj_t *pos_args
 STATIC MP_DEFINE_CONST_FUN_OBJ_KW(machine_rtc_wake_on_ext1_obj, 1, machine_rtc_wake_on_ext1);
 
 
+// ====== RTC memory functions ============================
+
+//---------------------------------------------------------------
+STATIC mp_obj_t esp_rtcmem_write_(mp_obj_t _pos, mp_obj_t _val) {
+	int pos = mp_obj_get_int(_pos);
+	int val = mp_obj_get_int(_val);
+
+	if (val < 0 || val > 255) {
+		mp_raise_msg(&mp_type_IndexError, "Value out of range");
+	}
+	int res = esp_rtcmem_write(pos, val);
+	if (res < 0) {
+		mp_raise_msg(&mp_type_IndexError, "Offset out of range");
+	}
+	return mp_const_none;
+}
+STATIC MP_DEFINE_CONST_FUN_OBJ_2(esp_rtcmem_write_obj, esp_rtcmem_write_);
+
+//-----------------------------------------------
+STATIC mp_obj_t esp_rtcmem_read_(mp_obj_t _pos) {
+	int pos = mp_obj_get_int(_pos);
+
+	int val = esp_rtcmem_read(pos);
+	if (val < 0) {
+		mp_raise_msg(&mp_type_IndexError, "Offset out of range");
+	}
+	return mp_obj_new_int(val);
+}
+STATIC MP_DEFINE_CONST_FUN_OBJ_1(esp_rtcmem_read_obj, esp_rtcmem_read_);
+
+//-------------------------------------------------------------------------------
+STATIC mp_obj_t esp_rtcmem_read_string_(mp_uint_t n_args, const mp_obj_t *args) {
+	int pos = (n_args == 0) ? 2 : mp_obj_get_int(args[0]);
+
+	char str[256];
+	size_t str_len = sizeof(str);
+	int res = esp_rtcmem_read_string(pos, str, &str_len);
+	if (res < 0) {
+		mp_raise_msg(&mp_type_IndexError, "Offset out of range");
+	}
+	return mp_obj_new_str(str, str_len-1, true);
+}
+STATIC MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(esp_rtcmem_read_string_obj, 0, 1, esp_rtcmem_read_string_);
+
+//--------------------------------------------------------------------------------
+STATIC mp_obj_t esp_rtcmem_write_string_(mp_uint_t n_args, const mp_obj_t *args) {
+	const char *str = mp_obj_str_get_str(args[0]);
+	int pos = (n_args == 1) ? 2 : mp_obj_get_int(args[1]);
+
+	int res = esp_rtcmem_write_string(pos, str);
+	if (res < 0) {
+		mp_raise_msg(&mp_type_IndexError, "Offset out of range");
+	}
+	return mp_const_none;
+}
+STATIC MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(esp_rtcmem_write_string_obj, 1, 2, esp_rtcmem_write_string_);
+
+
+
+
 //=========================================================
 STATIC const mp_map_elem_t mach_rtc_locals_dict_table[] = {
     { MP_OBJ_NEW_QSTR(MP_QSTR_init),                (mp_obj_t)&mach_rtc_init_obj },
@@ -353,6 +414,11 @@ STATIC const mp_map_elem_t mach_rtc_locals_dict_table[] = {
     { MP_OBJ_NEW_QSTR(MP_QSTR_synced),              (mp_obj_t)&mach_rtc_has_synced_obj },
     { MP_OBJ_NEW_QSTR(MP_QSTR_wake_on_ext0),        (mp_obj_t)&machine_rtc_wake_on_ext0_obj },
     { MP_OBJ_NEW_QSTR(MP_QSTR_wake_on_ext1),        (mp_obj_t)&machine_rtc_wake_on_ext1_obj },
+
+    {MP_OBJ_NEW_QSTR(MP_QSTR_rtcmem_write), 		(mp_obj_t)&esp_rtcmem_write_obj},
+    {MP_OBJ_NEW_QSTR(MP_QSTR_rtcmem_read), 			(mp_obj_t)&esp_rtcmem_read_obj},
+    {MP_OBJ_NEW_QSTR(MP_QSTR_rtcmem_write_string),	(mp_obj_t)&esp_rtcmem_write_string_obj},
+    {MP_OBJ_NEW_QSTR(MP_QSTR_rtcmem_read_string), 	(mp_obj_t)&esp_rtcmem_read_string_obj},
 };
 STATIC MP_DEFINE_CONST_DICT(mach_rtc_locals_dict, mach_rtc_locals_dict_table);
 

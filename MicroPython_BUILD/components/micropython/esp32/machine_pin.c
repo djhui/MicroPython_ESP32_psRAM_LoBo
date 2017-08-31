@@ -81,6 +81,25 @@ STATIC const machine_pin_obj_t machine_pin_obj[] = {
 // forward declaration
 STATIC const machine_pin_irq_obj_t machine_pin_irq_object[];
 
+
+//---------------------------------------
+int machine_pin_get_gpio(mp_obj_t pin_in)
+{
+    if (MP_OBJ_IS_INT(pin_in)) {
+    	int wanted_pin = mp_obj_get_int(pin_in);
+
+    	machine_pin_obj_t *Pin = NULL;
+        if ((0 <= wanted_pin) && (wanted_pin < MP_ARRAY_SIZE(machine_pin_obj))) {
+            Pin = (machine_pin_obj_t*)&machine_pin_obj[wanted_pin];
+        }
+        if ((Pin == NULL) || (Pin->base.type == NULL) || (Pin->id < 0)) {
+            nlr_raise(mp_obj_new_exception_msg(&mp_type_ValueError, "invalid pin"));
+        }
+        return Pin->id;
+    }
+    return machine_pin_get_id(pin_in);
+}
+
 void machine_pins_init(void) {
     static bool did_install = false;
     if (!did_install) {

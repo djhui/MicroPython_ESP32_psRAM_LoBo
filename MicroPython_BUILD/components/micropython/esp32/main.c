@@ -61,6 +61,7 @@
 
 #include "sdkconfig.h"
 
+
 // =========================================
 // MicroPython runs as a task under FreeRTOS
 // =========================================
@@ -71,7 +72,7 @@
 #define MP_TASK_STACK_LEN	(MP_TASK_STACK_SIZE / sizeof(StackType_t))
 
 
-STATIC TaskHandle_t MainTaskHandle;
+STATIC TaskHandle_t MainTaskHandle = NULL;
 #if MICROPY_PY_THREAD
 STATIC StaticTask_t DRAM_ATTR mp_task_tcb;
 STATIC StackType_t DRAM_ATTR mp_task_stack[MP_TASK_STACK_LEN] __attribute__((aligned (8)));
@@ -79,7 +80,6 @@ STATIC StackType_t DRAM_ATTR mp_task_stack[MP_TASK_STACK_LEN] __attribute__((ali
 STATIC uint8_t *mp_task_heap;
 
 int MainTaskCore = 0;
-
 
 //===============================
 void mp_task(void *pvParameter) {
@@ -98,9 +98,9 @@ void mp_task(void *pvParameter) {
         rtc_init0();
     }
 
-#if MICROPY_PY_THREAD
+	#if MICROPY_PY_THREAD
     mp_thread_preinit(&mp_task_stack[0], MP_TASK_STACK_LEN);
-#endif
+	#endif
 
     // Initialize the stack pointer for the main thread
     mp_stack_set_top((void *)sp);
@@ -125,7 +125,7 @@ soft_reset:
     // initialise peripherals
     machine_pins_init();
 
-    // run boot-up scripts
+	// run boot-up scripts
     pyexec_frozen_module("_boot.py");
     pyexec_file("boot.py");
     if (pyexec_mode_kind == PYEXEC_MODE_FRIENDLY_REPL) {
@@ -163,33 +163,6 @@ soft_reset:
 //============================
 void micropython_entry(void) {
     nvs_flash_init();
-/*
-    printf("==== START RGB ====\n");
-    uint8_t pixel_count = 24;
-    pixel_settings_t px = NEOPIXEL_INIT_CONFIG_DEFAULT();
-    px.pixel_count = pixel_count;
-    memcpy(&px.timings, &np_type_ws2812, sizeof(pixel_timing_t));
-	px.items = malloc(sizeof(rmt_item32_t) * ((pixel_count * 32) + 1));
-	px.pixels = malloc(sizeof(pixel_t) * pixel_count);
-
-	rmt_config_t rx = NEOPIXEL_RMT_INIT_CONFIG_DEFAULT();
-	ESP_ERROR_CHECK(rmt_config(&rx));
-	ESP_ERROR_CHECK(rmt_driver_install(RMT_CHANNEL_0, 0, 0));
-	np_clear(&px);
-	for(uint8_t i = 0; i < 8; ++i) {
-		np_set_pixel_color(&px, i, 255, 0, 0, 0);
-	}
-	for(uint8_t i = 8; i < 16; ++i) {
-		np_set_pixel_color(&px, i, 0, 255, 0, 0);
-	}
-	for(uint8_t i = 16; i < 24; ++i) {
-		np_set_pixel_color(&px, i, 0, 0, 255, 0);
-	}
-	np_show(&px);
-
-	printf("==== DONE RGB ====\n");
-*/
-
 
     // === Set esp32 log level while running MicroPython ===
 	esp_log_level_set("*", CONFIG_MICRO_PY_LOG_LEVEL);
@@ -236,10 +209,10 @@ void micropython_entry(void) {
 		// ==== THREADs ARE NOT USED ====
 		#if CONFIG_FREERTOS_UNICORE
 			MainTaskCore = 0;
-			MainTaskHandle = xTaskCreatePinnedToCore(&mp_task, "mp_task", MP_TASK_STACK_LEN, NULL, MP_TASK_PRIORITY, NULL, 0);
+			xTaskCreatePinnedToCore(&mp_task, "mp_task", MP_TASK_STACK_LEN, NULL, MP_TASK_PRIORITY, &MainTaskHandle, 0);
 		#else
 			MainTaskCore = 1;
-			MainTaskHandle = xTaskCreatePinnedToCore(&mp_task, "mp_task", MP_TASK_STACK_LEN, NULL, MP_TASK_PRIORITY, NULL, 1);
+			xTaskCreatePinnedToCore(&mp_task, "mp_task", MP_TASK_STACK_LEN, NULL, MP_TASK_PRIORITY, &MainTaskHandle, 1);
 		#endif
     #endif
 }

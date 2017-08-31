@@ -59,10 +59,14 @@ This way many features not available in standard ESP32 MicroPython are enabled, 
 * **Eclipse** project files included. To include it into Eclipse goto File->Import->Existing Projects into Workspace->Select root directory->[select *MicroPython_BUILD* directory]->Finish. **Rebuild index**.
 * **_threads** module greatly improved, inter-thread notifications and messaging included
 * **Neopixel** module using ESP32 **RMT** peripheral with many new features
-* **i2c** mudule uses ESP32 hardware i2c driver
+* **i2c** module uses ESP32 hardware i2c driver
 * **curl** module added
 * **ssh** module added
 * **display** module added with full support for spi TFT displays
+* **DHT** module implemented using ESP32 RMT peripheral
+* **mqtt** module added, implemented in C, runs in separate task
+* **telnet** module added, connect to REPL via WiFi using telnet protocol
+* **spi** module uses ESP32 hardware spi driver
 
 ---
 

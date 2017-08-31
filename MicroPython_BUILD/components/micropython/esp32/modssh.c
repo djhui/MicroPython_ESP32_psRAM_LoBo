@@ -55,11 +55,11 @@ STATIC mp_obj_t curl_SSH_helper(size_t n_args, const mp_obj_t *pos_args, mp_map_
 	checkConnection();
     enum { ARG_url, ARG_user, ARG_pass, ARG_file, ARG_port };
 	const mp_arg_t allowed_args[] = {
-        { MP_QSTR_url,  MP_ARG_REQUIRED | MP_ARG_OBJ, { .u_obj = mp_const_none } },
-        { MP_QSTR_user, MP_ARG_REQUIRED | MP_ARG_OBJ, { .u_obj = mp_const_none } },
-        { MP_QSTR_pass, MP_ARG_REQUIRED | MP_ARG_OBJ, { .u_obj = mp_const_none } },
-        { MP_QSTR_file,                   MP_ARG_OBJ, { .u_obj = mp_const_none } },
-        { MP_QSTR_port,                   MP_ARG_INT, { .u_int = 22 } },
+        { MP_QSTR_url,  	MP_ARG_REQUIRED | MP_ARG_OBJ, { .u_obj = mp_const_none } },
+        { MP_QSTR_user, 	MP_ARG_REQUIRED | MP_ARG_OBJ, { .u_obj = mp_const_none } },
+        { MP_QSTR_password,	MP_ARG_REQUIRED | MP_ARG_OBJ, { .u_obj = mp_const_none } },
+        { MP_QSTR_file,     	              MP_ARG_OBJ, { .u_obj = mp_const_none } },
+        { MP_QSTR_port,         	          MP_ARG_INT, { .u_int = 22 } },
     };
 
     mp_arg_val_t args[MP_ARRAY_SIZE(allowed_args)];

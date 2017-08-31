@@ -479,7 +479,7 @@ esp_err_t spi_lobo_bus_add_device(spi_lobo_host_device_t host, spi_lobo_bus_conf
 		if (dev_config->spics_ext_io_num > 0) dev_config->spics_ext_io_num = -1;
 	}
 	else {
-		if ((dev_config->spics_ext_io_num <= 0) || (!GPIO_IS_VALID_OUTPUT_GPIO(dev_config->spics_ext_io_num))) return ESP_ERR_INVALID_ARG;
+		//if ((dev_config->spics_ext_io_num <= 0) || (!GPIO_IS_VALID_OUTPUT_GPIO(dev_config->spics_ext_io_num))) return ESP_ERR_INVALID_ARG;
 	}
 
     //ToDo: Check if some other device uses the same 'spics_ext_io_num'
@@ -529,7 +529,7 @@ esp_err_t spi_lobo_bus_add_device(spi_lobo_host_device_t host, spi_lobo_bus_conf
             gpio_matrix_out(dev_config->spics_io_num, io_signal[host].spics_out[freecs], false, false);
         }
     }
-    else {
+    else if (dev_config->spics_ext_io_num >= 0) {
 		gpio_set_direction(dev_config->spics_ext_io_num, GPIO_MODE_OUTPUT);
 		gpio_set_level(dev_config->spics_ext_io_num, 1);
 	}

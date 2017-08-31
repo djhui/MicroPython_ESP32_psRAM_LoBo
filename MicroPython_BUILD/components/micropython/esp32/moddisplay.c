@@ -121,7 +121,7 @@ void setupDevice(display_tft_obj_t *disp_dev)
 	max_rdclock = disp_dev->spi_rdspeed;
 }
 
-//--------------------------------------------------------
+//-----------------------------------------------------------------------------------------------
 STATIC mp_obj_t display_tft_init(mp_uint_t n_args, const mp_obj_t *pos_args, mp_map_t *kw_args) {
 	enum { ARG_type, ARG_host, ARG_width, ARG_height, ARG_speed, ARG_miso, ARG_mosi, ARG_clk, ARG_cs, ARG_tcs, ARG_rst, ARG_bckl, ARG_bcklon, ARG_hastouch, ARG_invrot, ARG_bgr };
     const mp_arg_t allowed_args[] = {

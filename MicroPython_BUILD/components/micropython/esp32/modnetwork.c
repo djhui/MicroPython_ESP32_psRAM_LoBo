@@ -524,11 +524,93 @@ STATIC mp_obj_t esp_phy_mode(size_t n_args, const mp_obj_t *args) {
 STATIC MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(esp_phy_mode_obj, 0, 1, esp_phy_mode);
 
 
+#ifdef CONFIG_MICROPY_USE_MQTT
+extern const mp_obj_type_t mqtt_type;
+#endif
+
+
+//==============================
+#ifdef CONFIG_MICROPY_USE_TELNET
+
+#include "libs/telnet.h"
+#include "mpthreadport.h"
+
+//--------------------------------------
+STATIC mp_obj_t mod_network_startTelnet()
+{
+	if (mp_thread_createTelnetTask(TELNET_STACK_LEN)) return mp_const_true;
+	return mp_const_false;
+}
+STATIC MP_DEFINE_CONST_FUN_OBJ_0(mod_network_startTelnet_obj, mod_network_startTelnet);
+
+//--------------------------------------
+STATIC mp_obj_t mod_network_pauseTelnet()
+{
+	if (telnet_disable()) return mp_const_true;
+    return mp_const_false;
+}
+STATIC MP_DEFINE_CONST_FUN_OBJ_0(mod_network_pauseTelnet_obj, mod_network_pauseTelnet);
+
+//---------------------------------------
+STATIC mp_obj_t mod_network_resumeTelnet()
+{
+	if (telnet_enable()) return mp_const_true;
+    return mp_const_false;
+}
+STATIC MP_DEFINE_CONST_FUN_OBJ_0(mod_network_resumeTelnet_obj, mod_network_resumeTelnet);
+
+//--------------------------------------
+STATIC mp_obj_t mod_network_stateTelnet()
+{
+	mp_obj_t tuple[2];
+	char state[16] = {'\0'};
+
+	int telnet_state = telnet_getstate();
+
+	if (telnet_state == E_TELNET_STE_DISABLED) sprintf(state, "Disabled");
+	else if (telnet_state == E_TELNET_STE_START) sprintf(state, "Starting");
+	else if (telnet_state == E_TELNET_STE_LISTEN) sprintf(state, "Listen");
+	else if (telnet_state == E_TELNET_STE_CONNECTED) sprintf(state, "Connected");
+	else if (telnet_state == E_TELNET_STE_LOGGED_IN) sprintf(state, "Logged in");
+	else if (telnet_state == -1) sprintf(state, "Not started");
+	else sprintf(state, "Unknown");
+
+	tuple[0] = mp_obj_new_int(telnet_state);
+	tuple[1] = mp_obj_new_str(state, strlen(state), false);
+
+	return mp_obj_new_tuple(2, tuple);
+}
+STATIC MP_DEFINE_CONST_FUN_OBJ_0(mod_network_stateTelnet_obj, mod_network_stateTelnet);
+
+STATIC const mp_map_elem_t network_telnet_locals_dict_table[] = {
+    { MP_ROM_QSTR(MP_QSTR_start),  MP_ROM_PTR(&mod_network_startTelnet_obj) },
+    { MP_ROM_QSTR(MP_QSTR_pause),  MP_ROM_PTR(&mod_network_pauseTelnet_obj) },
+    { MP_ROM_QSTR(MP_QSTR_resume), MP_ROM_PTR(&mod_network_resumeTelnet_obj) },
+    { MP_ROM_QSTR(MP_QSTR_status), MP_ROM_PTR(&mod_network_stateTelnet_obj) }
+};
+
+STATIC MP_DEFINE_CONST_DICT(network_telnet_locals_dict, network_telnet_locals_dict_table);
+
+const mp_obj_type_t network_telnet_type = {
+    { &mp_type_type },
+    .name = MP_QSTR_telnet,
+    .locals_dict = (mp_obj_t)&network_telnet_locals_dict,
+};
+
+#endif
+
+
 STATIC const mp_map_elem_t mp_module_network_globals_table[] = {
     { MP_OBJ_NEW_QSTR(MP_QSTR___name__), MP_OBJ_NEW_QSTR(MP_QSTR_network) },
     { MP_OBJ_NEW_QSTR(MP_QSTR___init__), (mp_obj_t)&esp_initialize_obj },
     { MP_OBJ_NEW_QSTR(MP_QSTR_WLAN), (mp_obj_t)&get_wlan_obj },
     { MP_OBJ_NEW_QSTR(MP_QSTR_phy_mode), (mp_obj_t)&esp_phy_mode_obj },
+	#ifdef CONFIG_MICROPY_USE_MQTT
+	{ MP_ROM_QSTR(MP_QSTR_mqtt), MP_ROM_PTR(&mqtt_type) },
+	#endif
+	#ifdef CONFIG_MICROPY_USE_TELNET
+	{ MP_ROM_QSTR(MP_QSTR_telnet), MP_ROM_PTR(&network_telnet_type) },
+	#endif
 
 #if MODNETWORK_INCLUDE_CONSTANTS
     { MP_OBJ_NEW_QSTR(MP_QSTR_STA_IF),

@@ -29,6 +29,7 @@
 #include <stdio.h>
 #include <sys/time.h>
 #include <time.h>
+#include <string.h>
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -43,6 +44,10 @@
 #include "uart.h"
 #include "sdkconfig.h"
 
+#ifdef CONFIG_MICROPY_USE_TELNET
+#include "telnet.h"
+#endif
+
 STATIC uint8_t stdin_ringbuf_array[CONFIG_MICROPY_RX_BUFFER_SIZE];
 ringbuf_t stdin_ringbuf = {stdin_ringbuf_array, sizeof(stdin_ringbuf_array), 0, 0};
 
@@ -53,10 +58,15 @@ int mp_hal_stdin_rx_chr(uint32_t timeout)
 	uint32_t wait_end = mp_hal_ticks_ms() + timeout;
 	int c = -1;
 
-	for (;;) {
+    for (;;) {
     	if (mp_hal_ticks_ms() > wait_end) return -1;
 
-    	c = ringbuf_get(&stdin_ringbuf);
+		#ifdef CONFIG_MICROPY_USE_TELNET
+		// read telnet first
+		if (telnet_rx_any()) return telnet_rx_char();
+		#endif
+
+		c = ringbuf_get(&stdin_ringbuf);
     	if (c < 0) {
     		// no character in ring buffer
         	// wait 10 ms for character
@@ -70,7 +80,20 @@ int mp_hal_stdin_rx_chr(uint32_t timeout)
         		c = -1;
         	}
     	}
-    	if (c >= 0) return c;
+    	if (c >= 0) {
+    		// Character received
+			#ifdef CONFIG_MICROPY_USE_TELNET
+    		if (telnet_loggedin()) {
+    			if (c == 20) {
+    				// Ctrl_T received, reset telnet
+    				telnet_reset();
+    	        	printf("[Telnet] Connection terminated from REPL\n");
+    			}
+	            return -1;
+    		}
+			#endif
+    		return c;
+    	}
 
         xSemaphoreTake(uart0_mutex, UART_SEMAPHORE_WAIT);
         int raw = uart0_raw_input;
@@ -82,28 +105,80 @@ int mp_hal_stdin_rx_chr(uint32_t timeout)
     return -1;
 }
 
-void mp_hal_stdout_tx_char(char c) {
-    uart_tx_one_char(c);
-    //mp_uos_dupterm_tx_strn(&c, 1);
+#ifdef CONFIG_MICROPY_USE_TELNET
+// Convert '\n' to '\r\n'
+//-------------------------------------------------------------
+static void telnet_stdout_tx_str(const char *str, uint32_t len)
+{
+	char *tstr = malloc(len*2+1);
+	char prev = '\0';
+	uint32_t idx = 0;
+	while (len--) {
+		if ((*str == '\n') && (prev != '\r')) tstr[idx++] = '\r';
+		tstr[idx++] = *str;
+		prev = *str++;
+	}
+	tstr[idx++] = '\0';
+	telnet_tx_strn(tstr, strlen(tstr));
+	free(tstr);
 }
+#endif
 
+//------------------------------------------
 void mp_hal_stdout_tx_str(const char *str) {
+	#ifdef CONFIG_MICROPY_USE_TELNET
+   	if (telnet_loggedin()) telnet_tx_strn(str, strlen(str));
+   	else {
+   	   	//MP_THREAD_GIL_EXIT();
+   	    while (*str) {
+   	        uart_tx_one_char(*str++);
+   	    }
+   	   	//MP_THREAD_GIL_ENTER();
+   	}
+	#else
    	MP_THREAD_GIL_EXIT();
     while (*str) {
         uart_tx_one_char(*str++);
     }
    	MP_THREAD_GIL_ENTER();
+	#endif
 }
 
+//---------------------------------------------------------
 void mp_hal_stdout_tx_strn(const char *str, uint32_t len) {
+	#ifdef CONFIG_MICROPY_USE_TELNET
+   	if (telnet_loggedin()) telnet_tx_strn(str, len);
+   	else {
+   	   	//MP_THREAD_GIL_EXIT();
+   	    while (len--) {
+   	        uart_tx_one_char(*str++);
+   	    }
+   		//MP_THREAD_GIL_ENTER();
+   	}
+	#else
    	MP_THREAD_GIL_EXIT();
     while (len--) {
         uart_tx_one_char(*str++);
     }
-   	MP_THREAD_GIL_ENTER();
+	MP_THREAD_GIL_ENTER();
+	#endif
 }
 
+//----------------------------------------------------------------
 void mp_hal_stdout_tx_strn_cooked(const char *str, uint32_t len) {
+	#ifdef CONFIG_MICROPY_USE_TELNET
+   	if (telnet_loggedin()) telnet_stdout_tx_str(str, len);
+   	else {
+   	   	//MP_THREAD_GIL_EXIT();
+   	    while (len--) {
+   	        if (*str == '\n') {
+   	            uart_tx_one_char('\r');
+   	        }
+   	        uart_tx_one_char(*str++);
+   	    }
+   	   	//MP_THREAD_GIL_ENTER();
+   	}
+	#else
    	MP_THREAD_GIL_EXIT();
     while (len--) {
         if (*str == '\n') {
@@ -112,6 +187,7 @@ void mp_hal_stdout_tx_strn_cooked(const char *str, uint32_t len) {
         uart_tx_one_char(*str++);
     }
    	MP_THREAD_GIL_ENTER();
+	#endif
 }
 
 //------------------------------
@@ -150,6 +226,7 @@ void mp_hal_delay_us(uint32_t us) {
 }
 
 // this function could do with improvements (eg use ets_delay_us)
+//--------------------------------------
 void mp_hal_delay_us_fast(uint32_t us) {
     uint32_t delay = ets_get_cpu_frequency() / 19;
     while (--us) {
