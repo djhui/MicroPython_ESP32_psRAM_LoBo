@@ -51,6 +51,7 @@
 #define MICROPY_CAN_OVERRIDE_BUILTINS       (1)
 #define MICROPY_USE_INTERNAL_ERRNO          (1)
 #define MICROPY_USE_INTERNAL_PRINTF         (0) // ESP32 SDK requires its own printf
+#define MICROPY_PY_SYS_EXC_INFO             (1)
 #define MICROPY_ENABLE_SCHEDULER            (1)
 #define MICROPY_SCHEDULER_DEPTH             (8)
 

@@ -74,7 +74,7 @@
 #define MP_THREAD_MIN_STACK_SIZE			1580
 #define MP_THREAD_MIN_SERVICE_STACK_SIZE	(2*1024)
 #define MP_THREAD_DEFAULT_STACK_SIZE		(CONFIG_MICROPY_THREAD_STACK_SIZE*1024)
-#define MP_THREAD_MAX_STACK_SIZE			(16*1024)
+#define MP_THREAD_MAX_STACK_SIZE			(48*1024)
 
 typedef struct _mp_thread_mutex_t {
     SemaphoreHandle_t handle;
